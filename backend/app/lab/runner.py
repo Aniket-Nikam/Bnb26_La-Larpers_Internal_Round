@@ -3,16 +3,24 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .models import LabLimits, RunConfig, RunProgress, RunRecord, RunStatus, TERMINAL_STATUSES, now_iso
+from .models import (
+    TERMINAL_STATUSES,
+    LabLimits,
+    RunConfig,
+    RunProgress,
+    RunRecord,
+    RunStatus,
+    now_iso,
+)
 from .reports import performance_from_k6_summary
 from .store import AtomicRunStore
-
 
 SCRIPT_BY_SCENARIO = {
     "normal": "normal.js",
@@ -40,7 +48,12 @@ class LabRunner:
         k6_executable: str = "k6",
     ):
         parsed = urlparse(target_origin)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.username
+            or parsed.password
+        ):
             raise ValueError("LAB_TARGET_ORIGIN must be a fixed HTTP(S) origin without credentials")
         if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
             raise ValueError("LAB_TARGET_ORIGIN must not contain a path, query or fragment")
@@ -53,11 +66,13 @@ class LabRunner:
         self._lock = threading.RLock()
         self._processes: dict[str, subprocess.Popen[str]] = {}
 
-    def submit(self, payload: dict, *, credential_fixture: Path, app_commit: str) -> RunRecord:
+    def submit(
+        self, payload: dict, *, credential_fixture: Path, app_commit: str, run_id: str | None = None
+    ) -> RunRecord:
         config = RunConfig.from_dict(payload, self.limits)
         fixture = self._validated_fixture(credential_fixture)
         with self._lock:
-            run_id = str(uuid.uuid4())
+            run_id = run_id or str(uuid.uuid4())
             self.store.reserve_active(run_id)
             record = RunRecord(
                 run_id=run_id,
@@ -102,6 +117,8 @@ class LabRunner:
             self.k6_executable,
             "run",
             "--quiet",
+            "--log-format",
+            "raw",
             "--summary-export",
             str(summary_path),
             str(script_path),
@@ -123,15 +140,22 @@ class LabRunner:
                 record = self.store.get(run_id)
                 if record.status == RunStatus.STOPPING:
                     break
-                record.progress.message = f"Running measured HTTP workload trial {trial}/{config.trials}"
+                record.progress.message = (
+                    f"Running measured HTTP workload trial {trial}/{config.trials}"
+                )
                 self.store.save(record)
                 summary_path = run_dir / f"k6-summary-{trial}.json"
                 stdout_path = run_dir / f"k6-output-{trial}.log"
-                trial_env = {**env, "LAB_TRIAL_INDEX": str(trial)}
+                trial_fixture = self.prepare_trial(record, trial, fixture)
+                trial_env = {
+                    **env,
+                    "LAB_TRIAL_INDEX": str(trial),
+                    "LAB_CREDENTIALS_FILE": str(trial_fixture),
+                }
                 argv = self.build_argv(config, summary_path)
                 with stdout_path.open("w", encoding="utf-8") as output:
                     process = subprocess.Popen(
-                        argv,
+                        [sys.executable, str(Path(__file__).with_name("process.py")), *argv],
                         cwd=self.script_root,
                         env=trial_env,
                         stdin=subprocess.DEVNULL,
@@ -162,6 +186,7 @@ class LabRunner:
                     if latest.status == RunStatus.STOPPING:
                         break
                     raise RuntimeError(f"load generator exited with status {return_code}")
+                self.complete_trial(record, trial, trial_fixture, stdout_path)
                 summary_paths.append(summary_path)
                 record = self.store.get(run_id)
                 record.progress.completed_steps = trial
@@ -172,7 +197,9 @@ class LabRunner:
                 record.status = RunStatus.STOPPED
                 record.progress.message = "Stopped; partial artifacts retained"
                 if summary_paths:
-                    record.report_path = self._write_partial_report(run_dir, record, summary_paths, app_commit).name
+                    record.report_path = self._write_partial_report(
+                        run_dir, record, summary_paths, app_commit
+                    ).name
             else:
                 report_path = self._write_partial_report(run_dir, record, summary_paths, app_commit)
                 record.status = RunStatus.COMPLETED
@@ -180,9 +207,13 @@ class LabRunner:
                 record.report_path = report_path.name
             record.ended_at = now_iso()
             self.store.save(record)
-        except Exception as exc:  # safe boundary; raw subprocess output stays in restricted artifacts
+        except (
+            Exception
+        ) as exc:  # safe boundary; raw subprocess output stays in restricted artifacts
             record = self.store.get(run_id)
-            record.status = RunStatus.FAILED
+            record.status = (
+                RunStatus.STOPPED if record.status == RunStatus.STOPPING else RunStatus.FAILED
+            )
             record.ended_at = now_iso()
             record.progress.message = "Run failed; partial artifacts retained"
             record.error = {
@@ -190,14 +221,31 @@ class LabRunner:
                 "message": _safe_error(exc),
                 "retryable": isinstance(exc, (TimeoutError, FileNotFoundError)),
             }
+            if "summary_paths" in locals() and summary_paths:
+                try:
+                    record.report_path = self._write_partial_report(
+                        run_dir, record, summary_paths, app_commit
+                    ).name
+                except Exception:
+                    pass  # Raw trial artifacts remain available even if reconciliation failed.
             self.store.save(record)
         finally:
             with self._lock:
                 self._processes.pop(run_id, None)
             self.store.release_active(run_id)
 
+    def prepare_trial(self, record, trial, fixture):
+        return fixture
+
+    def complete_trial(self, record, trial, fixture, stdout_path):
+        pass
+
     def _subprocess_env(self, config: RunConfig, fixture: Path, run_id: str) -> dict[str, str]:
-        keep = {name: os.environ[name] for name in ("PATH", "SystemRoot", "WINDIR", "TEMP", "TMP") if name in os.environ}
+        keep = {
+            name: os.environ[name]
+            for name in ("PATH", "SystemRoot", "WINDIR", "TEMP", "TMP")
+            if name in os.environ
+        }
         keep.update(
             {
                 "LAB_TARGET_ORIGIN": self.target_origin,
@@ -218,12 +266,18 @@ class LabRunner:
     def _validated_fixture(self, value: Path) -> Path:
         fixture = value.resolve()
         if self.private_fixture_root not in fixture.parents or not fixture.is_file():
-            raise ValueError("credential fixture must be an existing file under the private fixture root")
+            raise ValueError(
+                "credential fixture must be an existing file under the private fixture root"
+            )
         return fixture
 
     @staticmethod
-    def _write_partial_report(run_dir: Path, record: RunRecord, summary_paths: list[Path], app_commit: str) -> Path:
-        summaries = [json.loads(path.read_text(encoding="utf-8")) for path in summary_paths if path.exists()]
+    def _write_partial_report(
+        run_dir: Path, record: RunRecord, summary_paths: list[Path], app_commit: str
+    ) -> Path:
+        summaries = [
+            json.loads(path.read_text(encoding="utf-8")) for path in summary_paths if path.exists()
+        ]
         per_trial = [
             performance_from_k6_summary(summary, target_rps=float(record.config["target_rps"]))
             for summary in summaries
@@ -262,7 +316,9 @@ class LabRunner:
             "limitations": limitations,
         }
         report_path = run_dir / "report.json"
-        report_path.write_text(json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
+        report_path.write_text(
+            json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8"
+        )
         return report_path
 
 

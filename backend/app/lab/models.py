@@ -94,7 +94,9 @@ class RunConfig:
         if not 1 <= self.identity_count <= limits.max_identities:
             raise ValueError(f"total identities must be between 1 and {limits.max_identities}")
         if not 1 <= self.duration_seconds <= limits.max_duration_seconds:
-            raise ValueError(f"duration_seconds must be between 1 and {limits.max_duration_seconds}")
+            raise ValueError(
+                f"duration_seconds must be between 1 and {limits.max_duration_seconds}"
+            )
         if not 0 < self.target_rps <= limits.max_rps:
             raise ValueError(f"target_rps must be greater than 0 and at most {limits.max_rps:g}")
         if not 0 <= self.retries_per_actor <= limits.max_retries_per_actor:
@@ -107,7 +109,9 @@ class RunConfig:
             raise ValueError(f"drop_capacity must be between 1 and {limits.max_drop_capacity}")
         if self.scenario in {Scenario.EARLY_BOT, Scenario.POLICY_COMPARE}:
             if self.human_actors == 0 or self.bot_actors == 0:
-                raise ValueError(f"{self.scenario.value} requires at least one human and one bot actor")
+                raise ValueError(
+                    f"{self.scenario.value} requires at least one human and one bot actor"
+                )
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)

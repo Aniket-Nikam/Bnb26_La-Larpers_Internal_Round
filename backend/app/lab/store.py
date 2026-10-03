@@ -6,7 +6,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from .models import RunRecord, RunStatus, TERMINAL_STATUSES
+from .models import TERMINAL_STATUSES, RunRecord
 
 
 class AtomicRunStore:
@@ -63,7 +63,9 @@ class AtomicRunStore:
                 return record
         except (OSError, KeyError, ValueError):
             pass
-        return next((record for record in self.list() if record.status not in TERMINAL_STATUSES), None)
+        return next(
+            (record for record in self.list() if record.status not in TERMINAL_STATUSES), None
+        )
 
     def reserve_active(self, run_id: str) -> None:
         """Atomically claim the single runner slot across API processes."""
@@ -108,7 +110,9 @@ class AtomicRunStore:
 
     @staticmethod
     def _write(path: Path, value: dict) -> None:
-        descriptor, temporary_name = tempfile.mkstemp(prefix=".status-", suffix=".json", dir=path.parent)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".status-", suffix=".json", dir=path.parent
+        )
         try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
                 json.dump(value, handle, indent=2, sort_keys=True, allow_nan=False)

@@ -16,24 +16,32 @@ services:
       LAB_PRIVATE_FIXTURE_ROOT: ${LAB_PRIVATE_FIXTURE_ROOT:-/run/secrets/fairdrop-lab}
     volumes:
       - lab-artifacts:/var/lib/fairdrop/lab
-      - ./private/lab:/run/secrets/fairdrop-lab:ro
+      - lab-private:/run/secrets/fairdrop-lab
 
   api-b:
     environment: *demo-api-environment
     volumes:
       - lab-artifacts:/var/lib/fairdrop/lab
-      - ./private/lab:/run/secrets/fairdrop-lab:ro
+      - lab-private:/run/secrets/fairdrop-lab
 
   runner:
     profiles: ["lab"]
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       target: lab-runner
     restart: unless-stopped
     environment:
       APP_PROFILE: demo
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is required}
+      SESSION_DIGEST_KEY: ${SESSION_DIGEST_KEY:?SESSION_DIGEST_KEY is required}
+      CREDENTIAL_DIGEST_KEY: ${CREDENTIAL_DIGEST_KEY:?CREDENTIAL_DIGEST_KEY is required}
+      SEED_ENCRYPTION_KEY: ${SEED_ENCRYPTION_KEY:?SEED_ENCRYPTION_KEY is required}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      LAB_ENABLED: "true"
+      APP_COMMIT: ${APP_COMMIT:-unknown}
       LAB_TARGET_ORIGIN: ${LAB_TARGET_ORIGIN:-http://gateway:8080}
       LAB_MAX_RPS: ${LAB_MAX_RPS:-2000}
       LAB_MAX_IDENTITIES: ${LAB_MAX_IDENTITIES:-50000}
@@ -41,11 +49,12 @@ services:
       LAB_PRIVATE_FIXTURE_ROOT: /run/secrets/fairdrop-lab
     volumes:
       - lab-artifacts:/var/lib/fairdrop/lab
-      - ./private/lab:/run/secrets/fairdrop-lab:ro
+      - lab-private:/run/secrets/fairdrop-lab
     depends_on:
       gateway:
         condition: service_started
     networks: [app]
 
 volumes:
+  lab-private:
   lab-artifacts:

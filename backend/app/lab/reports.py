@@ -8,7 +8,8 @@ from typing import Any, Iterable
 
 def performance_from_k6_summary(summary: dict[str, Any], *, target_rps: float) -> dict[str, Any]:
     metrics = summary.get("metrics", {})
-    latency = metrics.get("fairdrop_successful_request_latency", {}).get("values", {})
+    latency_metric = metrics.get("fairdrop_successful_request_latency", {})
+    latency = latency_metric.get("values", latency_metric)
     iterations = _metric_value(metrics, "iterations", "count")
     dropped = _metric_value(metrics, "dropped_iterations", "count") or 0
     delivered = int(iterations) if iterations is not None else None
@@ -59,7 +60,9 @@ def build_run_report(
     """
 
     rows = _deduplicate_identities(identities)
-    cohorts = {name: [row for row in rows if row.get("cohort") == name] for name in ("human", "bot")}
+    cohorts = {
+        name: [row for row in rows if row.get("cohort") == name] for name in ("human", "bot")
+    }
     admission: dict[str, Any] = {}
     allocation_cohorts: dict[str, Any] = {}
 
@@ -123,7 +126,9 @@ def build_run_report(
         "performance": performance.get("performance", {}),
         "statistics": {
             "trials": config.get("trials"),
-            "sample_sizes": {name: data["eligible_identities"] for name, data in allocation_cohorts.items()},
+            "sample_sizes": {
+                name: data["eligible_identities"] for name, data in allocation_cohorts.items()
+            },
             "interval_method": "Wilson score, 95%" if rows else None,
             "intervals": {
                 name: _wilson_interval(data["initial_offers"], data["eligible_identities"])
@@ -157,7 +162,9 @@ def _rate(denominator: int, numerator: int) -> float | None:
     return None if denominator == 0 else numerator / denominator
 
 
-def _bot_advantage(human_rate: float | None, bot_rate: float | None) -> tuple[float | None, str | None]:
+def _bot_advantage(
+    human_rate: float | None, bot_rate: float | None
+) -> tuple[float | None, str | None]:
     if human_rate is None:
         return None, "no accepted human identities"
     if bot_rate is None:
@@ -193,7 +200,9 @@ def _latency_statistics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "latency_correlation": None,
             "latency_undefined_reason": "one or more latency quartiles are empty",
         }
-    rates = [sum(bool(row.get("initial_offer")) for row in group) / len(group) for group in quartiles]
+    rates = [
+        sum(bool(row.get("initial_offer")) for row in group) / len(group) for group in quartiles
+    ]
     squares = sum(rate * rate for rate in rates)
     jain = None if squares == 0 else (sum(rates) ** 2) / (4 * squares)
     latencies = [float(row["entry_latency_ms"]) for row in accepted]
@@ -218,7 +227,9 @@ def _pearson(xs: list[float], ys: list[float]) -> tuple[float | None, str | None
     return sum(left * right for left, right in zip(dx, dy, strict=True)) / denominator, None
 
 
-def _wilson_interval(successes: int, total: int, z: float = 1.959963984540054) -> dict[str, float] | None:
+def _wilson_interval(
+    successes: int, total: int, z: float = 1.959963984540054
+) -> dict[str, float] | None:
     if total == 0:
         return None
     rate = successes / total
@@ -240,7 +251,8 @@ def _assert_finite_json(value: Any) -> None:
 
 
 def _metric_value(metrics: dict[str, Any], metric_name: str, value_name: str) -> float | None:
-    value = metrics.get(metric_name, {}).get("values", {}).get(value_name)
+    metric = metrics.get(metric_name, {})
+    value = metric.get("values", metric).get(value_name)
     return value if isinstance(value, (int, float)) and math.isfinite(value) else None
 
 

@@ -6,6 +6,7 @@ import { SharedArray } from 'k6/data';
 
 const target = required('LAB_TARGET_ORIGIN').replace(/\/$/, '');
 const scenarioName = required('LAB_SCENARIO');
+const publicOrigin = __ENV.LAB_PUBLIC_ORIGIN || target;
 const runId = required('LAB_RUN_ID');
 const durationSeconds = intEnv('LAB_DURATION_SECONDS', 30);
 const targetRps = numberEnv('LAB_TARGET_RPS', 100);
@@ -96,7 +97,7 @@ function runPerson(person) {
 
 function login(person) {
   const response = request('POST', '/api/v1/auth/session', JSON.stringify({ access_code: person.access_code }), {
-    headers: { 'Content-Type': 'application/json', Origin: target },
+    headers: { 'Content-Type': 'application/json', Origin: publicOrigin },
     tags: tags(person, 'login'),
   });
   if (response.status !== 200) return null;
@@ -108,7 +109,7 @@ function login(person) {
 function enter(session, dropId, operationKey, person) {
   const response = request('POST', `/api/v1/drops/${dropId}/entries`, '{}', {
     headers: writeHeaders(session.csrf, operationKey),
-    tags: tags(person, 'entry'),
+    tags: { ...tags(person, 'entry'), drop_id: dropId },
   });
   acceptedEntry.add(response.status === 200 || response.status === 201, tags(person, 'entry'));
   return response;
@@ -138,6 +139,9 @@ function request(method, path, body, params) {
     ...params,
   });
   const metricTags = (params && params.tags) || {};
+  console.log('FD_MEASURE ' + JSON.stringify({ endpoint: metricTags.endpoint || 'unknown',
+    status: response.status, latency_ms: response.timings.duration, public_id: metricTags.public_id || '',
+    drop_id: metricTags.drop_id || '' }));
   if (response.error_code) networkErrors.add(1, metricTags);
   if (response.status >= 200 && response.status < 400) successfulLatency.add(response.timings.duration, metricTags);
   if (response.status === 429) expected429.add(1, metricTags);
@@ -151,6 +155,7 @@ function request(method, path, body, params) {
 function optionsFor(name) {
   const base = {
     discardResponseBodies: false,
+    summaryTrendStats: ['med', 'p(95)', 'p(99)'],
     noConnectionReuse: false,
     thresholds: { fairdrop_unexpected_5xx: ['count==0'] },
   };
@@ -165,12 +170,14 @@ function optionsFor(name) {
   return base;
 }
 
-function arrival(execName, startSeconds, rate) {
+function arrival(execName, startSeconds, targetRequestsPerSecond) {
+  const requestsPerIteration = scenarioName === 'retry_flood' ? retryCount + 2 : 3;
+  const rate = targetRequestsPerSecond / requestsPerIteration;
   return {
     executor: 'constant-arrival-rate',
     exec: execName,
-    rate,
-    timeUnit: '1s',
+    rate: Math.max(1, Math.round(rate * 60)),
+    timeUnit: '1m',
     duration: `${durationSeconds}s`,
     startTime: `${startSeconds}s`,
     preAllocatedVUs: Math.max(1, Math.ceil(rate / 2)),
@@ -182,7 +189,7 @@ function flattenActors(actors) {
   const flattened = [];
   for (const actor of actors) {
     for (const credential of actor.credentials || []) {
-      flattened.push({ actor_id: actor.actor_id, cohort: actor.cohort, access_code: credential.access_code });
+      flattened.push({ actor_id: actor.actor_id, cohort: actor.cohort, access_code: credential.access_code, public_id: credential.public_id });
     }
   }
   return flattened;
@@ -194,13 +201,13 @@ function select(items) {
 }
 
 function tags(person, endpoint) {
-  return { cohort: person.cohort, endpoint, scenario: scenarioName, run_id: runId };
+  return { cohort: person.cohort, endpoint, scenario: scenarioName, run_id: runId, public_id: person.public_id };
 }
 
 function writeHeaders(csrf, operationKey) {
   return {
     'Content-Type': 'application/json',
-    Origin: target,
+    Origin: publicOrigin,
     'X-CSRF-Token': csrf,
     'Idempotency-Key': operationKey,
   };
