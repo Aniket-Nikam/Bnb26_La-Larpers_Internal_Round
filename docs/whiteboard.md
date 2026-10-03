@@ -214,9 +214,9 @@ This simple serialized per-drop seat coordinator is a deliberate scope tradeoff:
 | Decision | Accountable human | Implementation commit/path | Executed check/report | Actual limit | Human explanation/review |
 | --- | --- | --- | --- | --- | --- |
 | WB-01/02/05/08 | P1 | Pending | Pending | Proposed design only | Pending |
-| WB-03/04 | P2 | Pending | Pending | Proposed design only | Pending |
+| WB-03/04 | P2 | `backend/app/security/` on `codex/m2-security` (branch-only) | 28 stdlib unit tests: credential/session/CSRF/ownership/limiter policy | PostgreSQL/FastAPI and real Redis integration remain blocked on P1 bootstrap; credential farms remain a provisioning risk | Pending |
 | WB-06 | P3 | Pending | Pending | Proposed design only | Pending |
-| WB-07/09 | P4, with P2 for identity | Pending | Pending | Supplied evidence unreproduced | Pending |
+| WB-07/09 | P4, with P2 for identity | P2 identity/limiter contract in `backend/app/security/INTEGRATION.md` (branch-only); P4 evidence pending integration | P2 shared-IP and actor/account policy unit checks; no measured run | Network/global thresholds are provisional; supplied historical evidence remains unreproduced | Pending |
 | WB-10 | All four | Scope: simulated checkout | No money collected | No payment/transfer/check-in security | Pending |
 
 AI may suggest answers, update accurate implemented behavior and attach actual evidence. Only a human supplies their own explanation/review record. Ask each owner to explain: why this alternative, what malicious actor can do, which durable structure matters, what happens at the deadline/outage, what was actually tested, and where the guarantee stops. A confident answer without matching implementation is not a successful defense.
