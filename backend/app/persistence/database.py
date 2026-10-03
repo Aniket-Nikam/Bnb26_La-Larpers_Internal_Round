@@ -1,65 +1,31 @@
-"""
-SQLAlchemy async database session factory — P1 area.
-"""
-from __future__ import annotations
+from functools import lru_cache
 
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from backend.app.core.config import get_settings
-
-_engine = None
-_SessionLocal = None
+from app.core.config import get_settings
 
 
-def _get_engine():
-    global _engine
-    if _engine is None:
-        settings = get_settings()
-        url = settings.DATABASE_URL
-        # Convert postgresql:// to postgresql+asyncpg://
-        if url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        elif url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-        _engine = create_async_engine(
-            url,
-            pool_size=10,
-            max_overflow=5,
-            echo=False,
-        )
-    return _engine
+@lru_cache
+def get_engine():
+    cfg = get_settings()
+    return create_engine(
+        cfg.database_url,
+        pool_pre_ping=True,
+        pool_size=cfg.db_pool_size,
+        max_overflow=cfg.db_max_overflow,
+        isolation_level="READ COMMITTED",
+        connect_args={
+            "connect_timeout": 3,
+            "options": "-c statement_timeout=10000 -c lock_timeout=5000 -c timezone=UTC",
+        },
+    )
 
 
-def _get_session_local():
-    global _SessionLocal
-    if _SessionLocal is None:
-        _SessionLocal = async_sessionmaker(
-            bind=_get_engine(),
-            class_=AsyncSession,
-            expire_on_commit=False,
-            autocommit=False,
-            autoflush=False,
-        )
-    return _SessionLocal
+def session_factory():
+    return sessionmaker(bind=get_engine(), expire_on_commit=False)
 
 
-@asynccontextmanager
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    session_local = _get_session_local()
-    async with session_local() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency that yields an async DB session."""
-    async with get_db_session() as session:
-        yield session
+def get_db():
+    with session_factory()() as db:
+        yield db

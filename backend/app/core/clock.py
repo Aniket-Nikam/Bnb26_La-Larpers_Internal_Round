@@ -1,17 +1,16 @@
-"""
-Wall-clock adapter — P1 area.
-Always use clock_timestamp()-equivalent; never transaction-start now().
-"""
-from __future__ import annotations
+from datetime import datetime
 
-from datetime import datetime, timezone
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 
-def utc_now() -> datetime:
-    """Fresh wall-clock UTC datetime (not cached to transaction start)."""
-    return datetime.now(tz=timezone.utc)
+def db_now(db: Session) -> datetime:
+    """Read wall clock in a NEW statement after acquiring required locks."""
+    return db.scalar(select(func.clock_timestamp()))
 
 
-def utc_now_naive() -> datetime:
-    """Naive UTC datetime for SQLAlchemy comparisons where needed."""
-    return datetime.utcnow()
+def utc_now():
+    """UTC wall time for offline test/provisioning helpers; decisions use db_now."""
+    from datetime import UTC
+
+    return datetime.now(UTC)

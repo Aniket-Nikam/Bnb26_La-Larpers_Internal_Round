@@ -1,0 +1,115 @@
+{
+  "run_id": "10000000-0000-4000-8000-000000000001",
+  "status": "COMPLETED",
+  "scenario": "normal",
+  "started_at": "2026-10-03T12:00:00Z",
+  "ended_at": "2026-10-03T12:00:00Z",
+  "server_time": "2026-10-03T12:00:00Z",
+  "config": {
+    "scenario": "normal",
+    "human_actors": 1,
+    "bot_actors": 0,
+    "duration_seconds": 1,
+    "target_rps": 1.0,
+    "retries_per_actor": 0,
+    "trials": 1,
+    "drop_capacity": 1
+  },
+  "progress": {
+    "completed_steps": 1,
+    "total_steps": 1,
+    "message": "Fixture only"
+  },
+  "error": null,
+  "report": {
+    "provenance": {
+      "source": "supplied_unreproduced",
+      "timestamp": "2026-10-03T12:00:00Z",
+      "contract_version": "v1.0",
+      "algorithm_version": "hmac-sha256-v1",
+      "app_commit": "fixture",
+      "environment": "contract fixture",
+      "hardware": "not measured"
+    },
+    "workload": {
+      "provisioned_identity_count": 1,
+      "actors_by_cohort": {
+        "human": 1,
+        "bot": 0
+      },
+      "request_rate_target": 1.0,
+      "scheduled_iterations": 1,
+      "delivered_iterations": 0,
+      "dropped_iterations": 1,
+      "achieved_rps": null,
+      "peak_open_connections": null,
+      "peak_inflight_requests": null,
+      "generator_cpu_peak": null,
+      "generator_memory_peak": null
+    },
+    "admission": {
+      "human": {
+        "attempted_unique_identities": 1,
+        "accepted_unique_identities": 0,
+        "admission_rate": 0.0
+      },
+      "bot": {
+        "attempted_unique_identities": 0,
+        "accepted_unique_identities": 0,
+        "admission_rate": null
+      }
+    },
+    "allocation": {
+      "human": {
+        "eligible_identities": 0,
+        "initial_offers": 0,
+        "confirmed": 0,
+        "expired": 0,
+        "actor_credentials": 1,
+        "win_rate": null
+      },
+      "bot": {
+        "eligible_identities": 0,
+        "initial_offers": 0,
+        "confirmed": 0,
+        "expired": 0,
+        "actor_credentials": 0,
+        "win_rate": null
+      },
+      "bot_advantage": null,
+      "undefined_reason": "No observations in fixture."
+    },
+    "integrity": {
+      "capacity": 1,
+      "maximum_observed_owned_slots": 0,
+      "duplicate_active_owners": 0,
+      "oversell_count": 0,
+      "audit_pass": false
+    },
+    "performance": {
+      "successful_request_latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null
+      },
+      "endpoint_status_breakdown": [],
+      "expected_429": 0,
+      "expected_403": 0,
+      "expected_409": 0,
+      "unexpected_5xx": 0,
+      "network_errors": 0
+    },
+    "statistics": {
+      "trials": 1,
+      "sample_sizes": {
+        "human": 1,
+        "bot": 0
+      },
+      "interval_method": null,
+      "intervals": null
+    },
+    "limitations": [
+      "Schema example only; NOT a measured run."
+    ]
+  }
+}

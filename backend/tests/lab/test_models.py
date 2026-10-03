@@ -1,6 +1,6 @@
 import unittest
 
-from backend.app.lab.models import LabLimits, RunConfig, Scenario
+from app.lab.models import LabLimits, RunConfig, Scenario
 
 
 class RunConfigTests(unittest.TestCase):

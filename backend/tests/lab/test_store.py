@@ -3,8 +3,8 @@ import unittest
 import uuid
 from pathlib import Path
 
-from backend.app.lab.models import RunRecord, RunStatus, Scenario
-from backend.app.lab.store import AtomicRunStore
+from app.lab.models import RunRecord, RunStatus, Scenario
+from app.lab.store import AtomicRunStore
 
 
 class StoreTests(unittest.TestCase):
@@ -17,7 +17,9 @@ class StoreTests(unittest.TestCase):
 
     def test_persists_and_lists_run_state(self) -> None:
         store = AtomicRunStore(self.directory)
-        record = RunRecord("11111111-1111-4111-8111-111111111111", RunStatus.QUEUED, Scenario.NORMAL, {})
+        record = RunRecord(
+            "11111111-1111-4111-8111-111111111111", RunStatus.QUEUED, Scenario.NORMAL, {}
+        )
         store.create(record)
         record.status = RunStatus.RUNNING
         store.save(record)

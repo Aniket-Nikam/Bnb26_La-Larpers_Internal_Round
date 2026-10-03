@@ -4,9 +4,9 @@ import unittest
 import uuid
 from pathlib import Path
 
-from backend.app.lab.models import LabLimits, RunConfig
-from backend.app.lab.runner import LabRunner
-from backend.app.lab.store import AtomicRunStore
+from app.lab.models import LabLimits, RunConfig
+from app.lab.runner import LabRunner
+from app.lab.store import AtomicRunStore
 
 
 class RunnerTests(unittest.TestCase):

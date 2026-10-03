@@ -1,0 +1,25 @@
+{
+  "run_id": "10000000-0000-4000-8000-000000000001",
+  "status": "RUNNING",
+  "scenario": "normal",
+  "started_at": "2026-10-03T12:00:00Z",
+  "ended_at": null,
+  "server_time": "2026-10-03T12:00:00Z",
+  "config": {
+    "scenario": "normal",
+    "human_actors": 1,
+    "bot_actors": 0,
+    "duration_seconds": 1,
+    "target_rps": 1.0,
+    "retries_per_actor": 0,
+    "trials": 1,
+    "drop_capacity": 1
+  },
+  "progress": {
+    "completed_steps": 0,
+    "total_steps": 1,
+    "message": "Fixture only"
+  },
+  "error": null,
+  "report": null
+}

@@ -1,0 +1,19 @@
+{
+  "status": "published",
+  "drop_id": "20000000-0000-4000-8000-000000000001",
+  "draw_id": "10000000-0000-4000-8000-000000000001",
+  "algorithm_version": "hmac-sha256-v1",
+  "rules_version": "v1.0",
+  "mode": "LOTTERY",
+  "seed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "seed_commitment": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+  "manifest_commitment": "84638a30790c8708531196f22cf38404ba3ad4afb2713052953af8982d95fe99",
+  "entries": [
+    {
+      "public_entry_id": "fd_example",
+      "score_hex": "0948241dbf0c757dda4edb262c5526a569fac45cc06aaca53ce3906b3d10c71f",
+      "rank": 1
+    }
+  ],
+  "server_time": "2026-10-03T12:00:00Z"
+}

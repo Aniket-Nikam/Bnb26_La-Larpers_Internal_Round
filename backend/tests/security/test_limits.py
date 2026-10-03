@@ -9,20 +9,17 @@ Test cases:
 15. Independent legitimate accounts behind one shared IP
 16. Untrusted forwarded-header manipulation
 """
-import asyncio
+
 import secrets
 
-import pytest
 
-
-@pytest.mark.asyncio
-async def test_credential_attempt_rate_limit(client):
+def test_credential_attempt_rate_limit(client):
     """Repeated wrong credentials are rate-limited per IP."""
     blocked = 0
     for i in range(20):
-        resp = await client.post(
+        resp = client.post(
             "/api/v1/auth/session",
-            json={"access_code": "wrong-code-" + secrets.token_hex(4)},
+            json={"access_code": "wrong-code-repeated"},
             headers={"Origin": "http://testclient"},
         )
         if resp.status_code == 429:
@@ -32,14 +29,13 @@ async def test_credential_attempt_rate_limit(client):
     assert blocked > 0, "Expected at least some 429 responses under repeated attempts"
 
 
-@pytest.mark.asyncio
-async def test_rate_limit_returns_retry_after(client):
+def test_rate_limit_returns_retry_after(client):
     """429 response includes Retry-After header."""
     blocked_resp = None
     for i in range(20):
-        resp = await client.post(
+        resp = client.post(
             "/api/v1/auth/session",
-            json={"access_code": "flood-code-" + secrets.token_hex(4)},
+            json={"access_code": "flood-code-repeated"},
             headers={"Origin": "http://testclient"},
         )
         if resp.status_code == 429:
@@ -52,22 +48,21 @@ async def test_rate_limit_returns_retry_after(client):
         assert data["error"]["retryable"] is True
 
 
-@pytest.mark.asyncio
-async def test_account_limit_survives_session_rotation(client, db):
+def test_account_limit_survives_session_rotation(client, db):
     """
     Account-level rate limit survives session rotation.
     Creating a new session doesn't bypass the per-account budget.
     """
-    from backend.app.security.provisioning import provision_user_with_credential
+    from app.security.provisioning import provision_user_with_credential
 
     raw_code = "rotation-test-" + secrets.token_hex(8)
-    user, cred = await provision_user_with_credential(
+    user, cred = provision_user_with_credential(
         db=db, display_name="Rotation Test", role="participant", raw_code=raw_code
     )
-    await db.commit()
+    db.commit()
 
     # Login once to get a session
-    r = await client.post(
+    r = client.post(
         "/api/v1/auth/session",
         json={"access_code": raw_code},
         headers={"Origin": "http://testclient"},
@@ -78,36 +73,35 @@ async def test_account_limit_survives_session_rotation(client, db):
     # Even if we rotate sessions, the account budget persists
     # (This test verifies the architecture; full enforcement requires
     #  wiring to P1's entry routes which use enforce_limit with principal)
-    assert r.json()["principal"]["id"] == user.id
+    assert r.json()["principal"]["id"] == str(user.id)
 
 
-@pytest.mark.asyncio
-async def test_independent_accounts_same_ip_not_collapsed(client, db):
+def test_independent_accounts_same_ip_not_collapsed(client, db):
     """
     Two accounts from same IP each get independent entry attempts.
     Campus Wi-Fi scenario: shared IP does not collapse identities.
     """
-    from backend.app.security.provisioning import provision_user_with_credential
+    from app.security.provisioning import provision_user_with_credential
 
     # Create two separate users
     code1 = "campus-user-1-" + secrets.token_hex(8)
     code2 = "campus-user-2-" + secrets.token_hex(8)
 
-    user1, _ = await provision_user_with_credential(
+    user1, _ = provision_user_with_credential(
         db=db, display_name="Campus User 1", role="participant", raw_code=code1
     )
-    user2, _ = await provision_user_with_credential(
+    user2, _ = provision_user_with_credential(
         db=db, display_name="Campus User 2", role="participant", raw_code=code2
     )
-    await db.commit()
+    db.commit()
 
     # Both login from "same IP" (same test client)
-    r1 = await client.post(
+    r1 = client.post(
         "/api/v1/auth/session",
         json={"access_code": code1},
         headers={"Origin": "http://testclient"},
     )
-    r2 = await client.post(
+    r2 = client.post(
         "/api/v1/auth/session",
         json={"access_code": code2},
         headers={"Origin": "http://testclient"},
@@ -120,22 +114,22 @@ async def test_independent_accounts_same_ip_not_collapsed(client, db):
     id1 = r1.json()["principal"]["id"]
     id2 = r2.json()["principal"]["id"]
     assert id1 != id2
-    assert id1 == user1.id
-    assert id2 == user2.id
+    assert id1 == str(user1.id)
+    assert id2 == str(user2.id)
 
 
-@pytest.mark.asyncio
-async def test_untrusted_forwarded_header_not_trusted(client, test_user):
+def test_untrusted_forwarded_header_not_trusted(client, test_user):
     """
     Arbitrary X-Forwarded-For from client cannot override proxy-derived IP.
     Rate limits use trusted proxy IP only.
     """
     # Client sends fake X-Forwarded-For claiming to be a privileged IP
-    resp = await client.post(
+    resp = client.post(
         "/api/v1/auth/session",
         json={"access_code": test_user["raw_code"]},
         headers={
             "Origin": "http://testclient",
+            "Idempotency-Key": str(__import__("uuid").uuid4()),
             "X-Forwarded-For": "10.0.0.1, 192.168.1.1",  # Arbitrary client value
         },
     )
@@ -144,65 +138,62 @@ async def test_untrusted_forwarded_header_not_trusted(client, test_user):
     # Trusted IP extraction should use X-Real-IP (set by proxy) not X-Forwarded-For
 
 
-@pytest.mark.asyncio
-async def test_redis_outage_protected_writes_return_503(client, test_user, monkeypatch):
+def test_redis_outage_protected_writes_return_503(client, test_user, monkeypatch):
     """
     When Redis is unavailable, credential attempt (protected write) returns 503.
     This is the documented retryable failure mode.
     """
-    import redis.asyncio as redis_async
-    import backend.app.security.limits as limits_module
+    import redis as redis_async
+
+    import app.security.limits as limits_module
 
     # Make Redis appear unavailable
-    original_get_redis = limits_module.get_redis
 
     def broken_redis():
         bad_client = redis_async.Redis(host="localhost", port=19999)  # Unreachable
         return bad_client
 
     monkeypatch.setattr(limits_module, "get_redis", broken_redis)
-    monkeypatch.setattr(limits_module, "_redis_client", None)
+    # Shared client is injected below
 
-    resp = await client.post(
+    resp = client.post(
         "/api/v1/auth/session",
         json={"access_code": test_user["raw_code"]},
         headers={"Origin": "http://testclient"},
     )
 
     # Should return 503 retryable (Redis down → protected write fails safely)
-    assert resp.status_code in (503, 200)  # 200 if session auth bypasses limiter
+    assert resp.status_code == 503  # 200 if session auth bypasses limiter
     if resp.status_code == 503:
         data = resp.json()
         assert data["error"]["retryable"] is True
         assert data["error"]["code"] == "TEMPORARILY_UNAVAILABLE"
 
 
-@pytest.mark.asyncio
-async def test_limiter_lua_atomicity(client, db):
+def test_limiter_lua_atomicity(client, db):
     """
     Concurrent requests to the limiter don't create race conditions.
     Uses asyncio to fire concurrent requests and verify correct throttling.
     """
-    from backend.app.security.provisioning import provision_user_with_credential
+    from app.security.provisioning import provision_user_with_credential
 
     raw_code = "atomic-test-" + secrets.token_hex(8)
-    user, _ = await provision_user_with_credential(
+    user, _ = provision_user_with_credential(
         db=db, display_name="Atomic Test", role="participant", raw_code=raw_code
     )
-    await db.commit()
+    db.commit()
 
     # Fire concurrent login attempts
-    tasks = [
-        client.post(
+    from concurrent.futures import ThreadPoolExecutor
+
+    def attempt(_):
+        return client.post(
             "/api/v1/auth/session",
-            json={"access_code": "wrong-code-atomic-" + str(i)},
+            json={"access_code": "atomic-wrong-credential"},
             headers={"Origin": "http://testclient"},
         )
-        for i in range(10)
-    ]
-    responses = await asyncio.gather(*tasks)
-    statuses = [r.status_code for r in responses]
 
-    # Some should succeed (200 or 401), some may be rate-limited (429 or 503)
-    # Key invariant: no 500 errors (no race conditions in Lua)
-    assert 500 not in statuses, f"Internal error in concurrent limiter: {statuses}"
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        statuses = [response.status_code for response in pool.map(attempt, range(10))]
+    assert statuses.count(401) == 5
+    assert statuses.count(429) == 5

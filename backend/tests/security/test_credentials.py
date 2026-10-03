@@ -11,16 +11,13 @@ Test cases:
 7. Login does not create new user
 8. Multiple logins same credential → same user identity
 """
+
 import secrets
 
-import pytest
-import pytest_asyncio
 
-
-@pytest.mark.asyncio
-async def test_login_correct_credential(client, test_user):
+def test_login_correct_credential(client, test_user):
     """Correct credential returns 200 with session cookie and no raw token."""
-    resp = await client.post(
+    resp = client.post(
         "/api/v1/auth/session",
         json={"access_code": test_user["raw_code"]},
         headers={"Origin": "http://testclient"},
@@ -41,45 +38,42 @@ async def test_login_correct_credential(client, test_user):
     assert "fd_session" in resp.cookies
 
     # Principal identity
-    assert data["principal"]["id"] == test_user["user"].id
+    assert data["principal"]["id"] == str(test_user["user"].id)
     assert data["principal"]["role"] == "participant"
 
 
-@pytest.mark.asyncio
-async def test_login_incorrect_credential(client):
+def test_login_incorrect_credential(client):
     """Wrong credential returns 401 without revealing reason."""
-    resp = await client.post(
+    resp = client.post(
         "/api/v1/auth/session",
         json={"access_code": "totally-wrong-code-" + secrets.token_hex(8)},
         headers={"Origin": "http://testclient"},
     )
     assert resp.status_code == 401
     data = resp.json()
-    assert data["error"]["code"] == "FORBIDDEN"
+    assert data["error"]["code"] == "SESSION_REQUIRED"
     # No credential enumeration info
     assert "account" not in data["error"]["message"].lower()
     assert "exists" not in data["error"]["message"].lower()
 
 
-@pytest.mark.asyncio
-async def test_login_expired_credential(client, db):
+def test_login_expired_credential(client, db):
     """Expired credential returns 401."""
-    from datetime import timezone
-    from backend.app.core.clock import utc_now
-    from backend.app.security.provisioning import provision_user_with_credential
+    from app.core.clock import utc_now
+    from app.security.provisioning import provision_user_with_credential
 
     past = utc_now().replace(year=2020)  # Already expired
     raw_code = "expired-code-" + secrets.token_hex(8)
-    user, credential = await provision_user_with_credential(
+    user, credential = provision_user_with_credential(
         db=db,
         display_name="Expired User",
         role="participant",
         raw_code=raw_code,
         expires_at=past,
     )
-    await db.commit()
+    db.commit()
 
-    resp = await client.post(
+    resp = client.post(
         "/api/v1/auth/session",
         json={"access_code": raw_code},
         headers={"Origin": "http://testclient"},
@@ -87,22 +81,21 @@ async def test_login_expired_credential(client, db):
     assert resp.status_code == 401
 
 
-@pytest.mark.asyncio
-async def test_login_revoked_credential(client, db):
+def test_login_revoked_credential(client, db):
     """Revoked credential returns 401."""
-    from backend.app.security.provisioning import provision_user_with_credential, revoke_credential
+    from app.security.provisioning import provision_user_with_credential, revoke_credential
 
     raw_code = "revoked-code-" + secrets.token_hex(8)
-    user, credential = await provision_user_with_credential(
+    user, credential = provision_user_with_credential(
         db=db,
         display_name="Revoked User",
         role="participant",
         raw_code=raw_code,
     )
-    await revoke_credential(db, credential.id)
-    await db.commit()
+    revoke_credential(db, credential.id)
+    db.commit()
 
-    resp = await client.post(
+    resp = client.post(
         "/api/v1/auth/session",
         json={"access_code": raw_code},
         headers={"Origin": "http://testclient"},
@@ -110,11 +103,10 @@ async def test_login_revoked_credential(client, db):
     assert resp.status_code == 401
 
 
-@pytest.mark.asyncio
-async def test_login_no_raw_credential_in_error(client):
+def test_login_no_raw_credential_in_error(client):
     """Ensure raw credential never appears in error responses."""
     secret_code = "my-secret-code-" + secrets.token_hex(16)
-    resp = await client.post(
+    resp = client.post(
         "/api/v1/auth/session",
         json={"access_code": secret_code},
         headers={"Origin": "http://testclient"},
@@ -123,12 +115,11 @@ async def test_login_no_raw_credential_in_error(client):
     assert secret_code not in resp.text
 
 
-@pytest.mark.asyncio
-async def test_login_multiple_sessions_same_user(client, test_user):
+def test_login_multiple_sessions_same_user(client, test_user):
     """Same credential used multiple times → same user identity."""
     ids = set()
     for _ in range(3):
-        resp = await client.post(
+        resp = client.post(
             "/api/v1/auth/session",
             json={"access_code": test_user["raw_code"]},
             headers={"Origin": "http://testclient"},
@@ -140,34 +131,33 @@ async def test_login_multiple_sessions_same_user(client, test_user):
     assert len(ids) == 1
 
 
-@pytest.mark.asyncio
-async def test_login_no_cookie_no_session(client):
+def test_login_no_cookie_no_session(client):
     """GET /auth/me without cookie returns 401."""
-    resp = await client.get("/api/v1/auth/me")
+    resp = client.get("/api/v1/auth/me")
     assert resp.status_code == 401
     assert resp.json()["error"]["code"] == "SESSION_REQUIRED"
 
 
-@pytest.mark.asyncio
-async def test_login_does_not_create_new_user(client, db, test_user):
+def test_login_does_not_create_new_user(client, db, test_user):
     """Login with same credential always returns same user, never creates another."""
-    from sqlalchemy import select, func
-    from backend.app.persistence.models import User
+    from sqlalchemy import func, select
+
+    from app.persistence.models import User
 
     # Count users before
-    before = await db.execute(select(func.count(User.id)))
+    before = db.execute(select(func.count(User.id)))
     count_before = before.scalar()
 
     # Login twice
     for _ in range(2):
-        resp = await client.post(
+        resp = client.post(
             "/api/v1/auth/session",
             json={"access_code": test_user["raw_code"]},
             headers={"Origin": "http://testclient"},
         )
         assert resp.status_code == 200
 
-    after = await db.execute(select(func.count(User.id)))
+    after = db.execute(select(func.count(User.id)))
     count_after = after.scalar()
 
     # No new users created
