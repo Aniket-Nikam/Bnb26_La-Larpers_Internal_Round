@@ -2,7 +2,7 @@
 
 Updated UTC: 2026-10-03T16:45:00Z
 Member: Member 2 (Security Owner)
-Branch: feature/m2-security
+Branch: M2
 Actual Head: 802012b
 
 ## Assigned Task
