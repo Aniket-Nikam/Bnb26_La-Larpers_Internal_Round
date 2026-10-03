@@ -8,7 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=None, extra="ignore")
+    # Environment variables take precedence. Loading either local .env location
+    # also makes `cd backend && uv run ...` behave like Compose's --env-file.
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
     app_profile: Literal["normal", "demo", "test"] = "normal"
     database_url: str = "postgresql+psycopg://localhost/fairdrop"
     redis_url: str = "redis://localhost:6379/0"

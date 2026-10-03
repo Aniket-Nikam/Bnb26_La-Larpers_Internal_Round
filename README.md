@@ -81,6 +81,8 @@ Vite forwards `/api` to the backend on port 8000.
 
 ```sh
 cd backend
+# If the repository root has a generated .env, export it for local commands:
+set -a; source ../.env; set +a
 uv sync --frozen --python 3.12
 uv run alembic upgrade head
 uv run alembic check

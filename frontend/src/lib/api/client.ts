@@ -56,10 +56,23 @@ export async function api<T>(
     response = await fetch(`/api/v1${path}`, options);
   }
   if (!response.ok) {
-    const result = (await response.json()) as Schema["ErrorResponse"];
+    const raw = await response.text();
+    let result: Schema["ErrorResponse"] | null = null;
+    if (raw) {
+      try {
+        result = JSON.parse(raw) as Schema["ErrorResponse"];
+      } catch {
+        // Gateways and stopped dev servers can return an empty or HTML body.
+      }
+    }
+    const message =
+      result?.error?.message ??
+      (response.status >= 500
+        ? "The FairDrop backend is unavailable. Start the backend and try again."
+        : `Request failed (${response.status}).`);
     throw new ApiError(
-      result.error.code,
-      result.error.message,
+      result?.error?.code ?? "BACKEND_UNAVAILABLE",
+      message,
       response.status,
       response.headers.has("Retry-After")
         ? Number(response.headers.get("Retry-After"))
