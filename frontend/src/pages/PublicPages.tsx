@@ -1,128 +1,374 @@
-import { motion } from 'framer-motion';
-import { ShieldCheck, Ticket, ChevronRight, Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { TicketCard, TicketDivider } from '../components/Ticket';
-import { DEV_FIXTURES } from '../fixtures';
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { ShieldCheck, Ticket, Lock } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { TicketCard, TicketDivider } from "../components/Ticket";
+import { ErrorMessage } from "../components/State";
+import { api, time, useAction, useLogin, useSession } from "../lib/api/client";
+import type { Drop, Entry, Page, Schema } from "../lib/api/client";
 
 export function LandingPage() {
+  const [q, setQ] = useState("");
+  const [cursor, setCursor] = useState<string | null>(null);
+  const drops = useQuery({
+    queryKey: ["drops", q, cursor],
+    queryFn: () =>
+      api<Page<Schema["DropSummary"]>>(
+        `/drops?q=${encodeURIComponent(q)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+      ),
+  });
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="space-y-16 pt-16">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-12 pt-16"
+    >
       <div className="space-y-8">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#161616] text-white rounded-full text-[12px] font-bold uppercase tracking-widest">
-          <ShieldCheck className="w-4 h-4" />
-          <span>Provably Fair</span>
+        <div className="inline-flex gap-2 text-sm">
+          <ShieldCheck /> Provably fair lottery
         </div>
-        <h1 className="text-6xl md:text-[5.5rem] font-bold tracking-tighter text-white leading-[0.95]">
-          Enter once. <br />
-          <span className="text-white/30">Verify securely.</span>
+        <h1 className="text-6xl md:text-8xl font-bold tracking-tighter">
+          Enter once.
+          <br />
+          <span className="text-white/40">Verify securely.</span>
         </h1>
-        <p className="text-[18px] text-white/50 max-w-xl leading-relaxed font-medium">
-          Verify your invitation, enter the drop once, and rely on cryptographic commitments to ensure a completely fair outcome.
+        <p className="text-lg text-white/60 max-w-xl">
+          Use your invitation credential, save one entry, and verify the
+          published draw.
         </p>
       </div>
-      
-      <div className="mt-20">
-        <Link to={`/drops/${DEV_FIXTURES.drops[0].id}`}>
-          <TicketCard className="cursor-pointer group hover:bg-[#1C1C1E] transition-colors">
-            <div className="p-10 pb-6">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <div className="text-white/40 text-[11px] font-bold uppercase tracking-[0.2em] mb-3">Featured Drop</div>
-                  <div className="text-3xl font-bold text-white tracking-tighter">{DEV_FIXTURES.drops[0].name}</div>
-                </div>
-                <div className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                  <Ticket className="w-6 h-6" />
-                </div>
-              </div>
-            </div>
-            
-            <TicketDivider />
-            
-            <div className="p-10 pt-6">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
-                  <span className="text-[13px] font-bold text-white tracking-widest uppercase">Accepting Entries</span>
-                </div>
-                <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
-                  <ChevronRight className="w-5 h-5" />
-                </div>
-              </div>
-            </div>
-          </TicketCard>
-        </Link>
+      <label className="block">
+        Search drops
+        <input
+          aria-label="Search drops"
+          className="field mt-2"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setCursor(null);
+          }}
+        />
+      </label>
+      <ErrorMessage error={drops.error} />
+      {drops.isPending && <p role="status">Loading drops…</p>}
+      {drops.data?.items.length === 0 && (
+        <p>No published drops match this search.</p>
+      )}
+      <div className="grid gap-6 md:grid-cols-2">
+        {drops.data?.items.map((drop) => (
+          <Link key={drop.id} to={`/drops/${drop.id}`}>
+            <TicketCard className="p-8 space-y-5 hover:bg-white/10">
+              <Ticket />
+              <h2 className="text-3xl font-bold">{drop.title}</h2>
+              <p>
+                {drop.organizer.display_name} · {drop.capacity} seats
+              </p>
+              <p className="text-white/60">
+                {drop.phase} ·{" "}
+                {drop.mode === "FCFS_DEMO" ? "Demo FCFS comparison" : "Lottery"}
+              </p>
+              <p>{time(drop.starts_at)}</p>
+            </TicketCard>
+          </Link>
+        ))}
       </div>
+      {drops.data?.next_cursor && (
+        <button
+          className="button"
+          onClick={() => setCursor(drops.data!.next_cursor)}
+        >
+          Next page
+        </button>
+      )}
     </motion.div>
+  );
+}
+
+function SavedEntry({ entry }: { entry: Entry }) {
+  const action = useAction<Entry>();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  // Use server_time to correct the local countdown. The server decides the deadline.
+  const [observed] = useState(() => Date.now());
+  const remaining = entry.reservation
+    ? Math.max(
+        0,
+        Math.ceil(
+          (Date.parse(entry.reservation.expires_at) -
+            (Date.parse(entry.server_time) + now - observed)) /
+            1000,
+        ),
+      )
+    : 0;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">{entry.status}</h2>
+      <p className="break-all">Receipt: {entry.receipt_id}</p>
+      {entry.rank && <p>Draw rank: {entry.rank}</p>}
+      {entry.status === "OFFERED" && entry.reservation && (
+        <>
+          <p>
+            Confirm within {remaining} seconds. Deadline:{" "}
+            {time(entry.reservation.expires_at)}
+          </p>
+          <button
+            className="button"
+            disabled={action.isPending || remaining === 0}
+            onClick={() =>
+              action.mutate({
+                path: `/reservations/${entry.reservation!.id}/confirm`,
+              })
+            }
+          >
+            Confirm seat
+          </button>
+        </>
+      )}
+      {entry.status === "CONFIRMED" && <p>Your seat is confirmed.</p>}
+      {entry.status === "WAITLISTED" && (
+        <p>
+          Your saved entry is on the waitlist. This view updates automatically.
+        </p>
+      )}
+      {entry.status === "EXPIRED" && <p>The confirmation deadline passed.</p>}
+      {entry.status === "CANCELLED" && (
+        <p>The organizer cancelled this drop.</p>
+      )}
+      <Link className="underline" to={`/entries/${entry.entry_id}`}>
+        View receipt
+      </Link>
+      <ErrorMessage error={action.error} />
+    </div>
   );
 }
 
 export function DropDetail() {
+  const { id } = useParams();
+  const session = useSession();
+  const action = useAction<Entry>();
+  const drop = useQuery({
+    queryKey: ["drop", id],
+    queryFn: () => api<Drop>(`/drops/${id}`),
+    refetchInterval: 5000,
+  });
+  const state = useQuery({
+    queryKey: ["state", id, session.data?.principal.id],
+    queryFn: () => api<Schema["MyDropState"]>(`/drops/${id}/me`),
+    enabled: !!session.data && !!drop.data && drop.data.phase !== "DRAFT",
+    refetchInterval: 3000,
+  });
+  if (drop.isPending) return <p role="status">Loading drop…</p>;
+  if (!drop.data) return <ErrorMessage error={drop.error} />;
+  const d = drop.data;
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }} className="max-w-2xl mx-auto pt-10">
-      <TicketCard className="cursor-default">
-        <div className="p-12 pb-8">
-          <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-black mb-10">
-            <Ticket className="w-8 h-8" strokeWidth={2.5} />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter mb-4 text-white leading-tight">FairDrop <br/>Inaugural Event</h1>
-          <div className="grid grid-cols-2 gap-8 mt-10">
-            <div>
-              <div className="text-white/40 text-[11px] font-bold uppercase tracking-[0.2em] mb-2">Status</div>
-              <div className="text-[16px] font-semibold text-white flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-white" /> Open
-              </div>
-            </div>
-            <div>
-              <div className="text-white/40 text-[11px] font-bold uppercase tracking-[0.2em] mb-2">Capacity</div>
-              <div className="text-[16px] font-semibold text-white">100 Seats</div>
-            </div>
-          </div>
+    <div className="max-w-2xl mx-auto pt-10 space-y-5">
+      <TicketCard>
+        <div className="p-10 space-y-6">
+          <Ticket className="w-12 h-12" />
+          <h1 className="text-4xl font-bold">{d.title}</h1>
+          <p>{d.description}</p>
+          <p>
+            {d.phase} · {d.capacity} seats · {d.mode}
+          </p>
+          <p>
+            {time(d.starts_at)} — {time(d.ends_at)}
+          </p>
+          <p>{d.location_label}</p>
+          {d.cancellation_reason && <p>{d.cancellation_reason}</p>}
         </div>
-        
         <TicketDivider />
-        
-        <div className="p-12 pt-8">
-          <div className="mb-10">
-            <h3 className="font-bold mb-3 text-[12px] uppercase tracking-widest text-white/40">Eligibility Rules</h3>
-            <p className="text-[16px] text-white/80 leading-relaxed font-medium">
-              You must hold a valid invitation credential to enter. Each person is allowed exactly one entry.
+        <div className="p-10 space-y-5">
+          {session.isPending ? (
+            <p>Checking session…</p>
+          ) : !session.data ? (
+            <Link className="button" to="/sign-in">
+              Sign in to check your invitation
+            </Link>
+          ) : state.isPending ? (
+            <p role="status">Checking invitation…</p>
+          ) : state.data?.entry ? (
+            <SavedEntry
+              key={`${state.data.entry.entry_id}-${state.data.entry.server_time}`}
+              entry={state.data.entry}
+            />
+          ) : (
+            <>
+              <p>
+                {state.data?.eligibility.eligible
+                  ? "Your invitation is eligible."
+                  : "An invitation for this drop is required."}
+              </p>
+              <button
+                className="button"
+                disabled={
+                  action.isPending ||
+                  !state.data?.eligibility.eligible ||
+                  d.phase !== "OPEN"
+                }
+                onClick={() => action.mutate({ path: `/drops/${id}/entries` })}
+              >
+                {action.isPending ? "Saving…" : "Enter drop"}
+              </button>
+            </>
+          )}
+          <ErrorMessage error={state.error ?? action.error ?? session.error} />
+          <Link className="underline" to={`/drops/${id}/proof`}>
+            View draw proof
+          </Link>
+          {d.seed_commitment && (
+            <p className="break-all text-sm text-white/50">
+              Seed commitment: {d.seed_commitment}
             </p>
-          </div>
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full bg-white text-black py-5 rounded-full font-bold text-[16px] uppercase tracking-widest hover:bg-gray-200">
-            Enter Drop
-          </motion.button>
+          )}
         </div>
       </TicketCard>
-    </motion.div>
+    </div>
   );
 }
 
 export function SignInPage() {
+  const [code, setCode] = useState("");
+  const login = useLogin();
+  const navigate = useNavigate();
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto pt-20">
-      <TicketCard className="cursor-default">
-        <div className="p-12 pb-8 text-center">
-          <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-black mx-auto mb-8">
-            <Lock className="w-8 h-8" strokeWidth={2.5} />
-          </div>
-          <h1 className="text-3xl font-bold mb-3 tracking-tighter text-white">Sign In</h1>
-          <p className="text-[15px] text-white/50 font-medium">Enter your secure credentials</p>
-        </div>
-        
-        <TicketDivider />
-        
-        <div className="p-12 pt-8">
-          <form className="space-y-8">
-            <div>
-              <label className="block text-[11px] font-bold text-white/50 mb-3 uppercase tracking-[0.2em]">Invitation Credential</label>
-              <input type="text" className="w-full bg-black border border-transparent focus:border-white focus:ring-1 focus:ring-white rounded-2xl px-5 py-4 text-[16px] text-white placeholder-white/20 outline-none font-mono transition-all" placeholder="0x..." />
-            </div>
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full bg-white text-black py-4 rounded-full font-bold text-[14px] uppercase tracking-widest hover:bg-gray-200">
-              Verify & Sign In
-            </motion.button>
-          </form>
-        </div>
+    <div className="max-w-md mx-auto pt-16">
+      <TicketCard className="p-10 space-y-8">
+        <Lock />
+        <h1 className="text-3xl font-bold">Sign in</h1>
+        <form
+          className="space-y-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            login.mutate(code, {
+              onSuccess: () => {
+                setCode("");
+                navigate("/drops");
+              },
+            });
+          }}
+        >
+          <label className="block">
+            Invitation credential
+            <input
+              className="field mt-3"
+              type="password"
+              autoComplete="off"
+              required
+              maxLength={256}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </label>
+          <button className="button" disabled={login.isPending}>
+            Verify &amp; sign in
+          </button>
+          <ErrorMessage error={login.error} />
+        </form>
       </TicketCard>
-    </motion.div>
+    </div>
+  );
+}
+
+export function ReceiptsPage() {
+  const session = useSession();
+  const receipts = useQuery({
+    queryKey: ["receipts", session.data?.principal.id],
+    queryFn: () => api<Page<Schema["Receipt"]>>("/entries"),
+    enabled: !!session.data,
+    refetchInterval: 5000,
+  });
+  if (!session.data) return <Link to="/sign-in">Sign in to view receipts</Link>;
+  return (
+    <div className="space-y-6 pt-10">
+      <h1 className="text-3xl font-bold">My receipts</h1>
+      <ErrorMessage error={receipts.error} />
+      {receipts.isPending && <p>Loading receipts…</p>}
+      {receipts.data?.items.length === 0 && (
+        <p>You have no saved entries yet.</p>
+      )}
+      {receipts.data?.items.map((r) => (
+        <TicketCard key={r.entry.entry_id} className="p-8">
+          <Link className="underline" to={`/entries/${r.entry.entry_id}`}>
+            {r.drop.title} · {r.entry.status}
+          </Link>
+        </TicketCard>
+      ))}
+    </div>
+  );
+}
+
+export function ReceiptPage() {
+  const { id } = useParams();
+  const session = useSession();
+  const receipt = useQuery({
+    queryKey: ["receipt", id, session.data?.principal.id],
+    queryFn: () => api<Schema["Receipt"]>(`/entries/${id}`),
+    enabled: !!session.data,
+    refetchInterval: 3000,
+  });
+  return (
+    <div className="pt-10 space-y-6">
+      <h1 className="text-3xl font-bold">Entry receipt</h1>
+      <ErrorMessage error={receipt.error} />
+      {!session.data && <Link to="/sign-in">Sign in to view this receipt</Link>}
+      {receipt.data && (
+        <TicketCard className="p-10 space-y-6">
+          <h2>{receipt.data.drop.title}</h2>
+          <SavedEntry
+            key={receipt.data.entry.server_time}
+            entry={receipt.data.entry}
+          />
+          <Link
+            className="underline"
+            to={`/drops/${receipt.data.drop.id}/proof`}
+          >
+            Verify draw proof
+          </Link>
+        </TicketCard>
+      )}
+    </div>
+  );
+}
+
+export function ProofPage() {
+  const { id } = useParams();
+  const proof = useQuery({
+    queryKey: ["proof", id],
+    queryFn: () =>
+      api<Schema["PublishedProof"] | Schema["PendingProof"]>(
+        `/drops/${id}/proof`,
+      ),
+    refetchInterval: 5000,
+  });
+  return (
+    <div className="space-y-6 pt-10">
+      <h1 className="text-3xl font-bold">Public draw proof</h1>
+      <ErrorMessage error={proof.error} />
+      {proof.data && (
+        <>
+          <p>
+            {proof.data.status === "pending"
+              ? `Proof is pending (${proof.data.phase}).`
+              : `${proof.data.entries.length} frozen entries · ${proof.data.algorithm_version}`}
+          </p>
+          {proof.data.status === "published" && (
+            <a
+              className="button"
+              href={`/api/v1/drops/${id}/proof`}
+              download="proof.json"
+            >
+              Download proof JSON
+            </a>
+          )}
+          <pre className="overflow-auto rounded-3xl bg-white/5 p-6 text-sm">
+            {JSON.stringify(proof.data, null, 2)}
+          </pre>
+        </>
+      )}
+    </div>
   );
 }

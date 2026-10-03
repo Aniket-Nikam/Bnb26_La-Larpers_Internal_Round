@@ -25,3 +25,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+@layer components {
+  .field { @apply w-full rounded-2xl border border-white/20 bg-black px-5 py-3 text-white outline-none focus:border-white; }
+  .button { @apply inline-flex items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black disabled:opacity-40 disabled:cursor-not-allowed; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
