@@ -18,3 +18,23 @@ setup to UTF-8. pytest import path fixed before pass. Starlette emits a deprecat
 warning for the baseline httpx adapter; no functional test failure.
 Handoff: contracts/HANDOFF.md. Security/lab implementation now belongs to P2/P4.
 Next: P1 domain routes, durable entry/idempotency and PostgreSQL race verification.
+
+## Durable entry/domain feature — 2026-10-03 UTC
+
+Bootstrap commit: e43f871. Implemented public discovery/detail; owner-guarded drafts,
+pre-existing-account grants/removal; publication locks and exactly-capacity slots;
+AES-GCM protected committed seed; cancellation; own receipt/history/state; safe audit,
+CSV export and derived inventory. Durable scoped operation claims use PostgreSQL
+ON CONFLICT+row locks, payload fingerprints and domain references, never credentials.
+Concurrent LOTTERY admissions hold compatible FOR SHARE; no drop counter upgrades.
+Population bound follows <=50000 locked grants; composite grant FK binds identity.
+Public IDs have random 192-bit material and fd_ prefix to keep CSV cells inert.
+
+Checks executed: pytest -q, 6 passed on real PostgreSQL 18 (including 16 concurrent
+same-account HTTP operations, same/different keys; single entry/audit; late recovery;
+new late denial; authorization/privacy; publication/grant locks; cancellation).
+ruff passed; OpenAPI export and generated TypeScript compile passed. One failed
+eligibility-removal check exposed an ambiguous ORM join; fixed the explicit user FK.
+Security in these tests is an EXPLICIT TEST-ONLY adapter, not real P2 login/CSRF/limits.
+Real login/browser integration remains BLOCKED on P2/P3; deny-by-default remains live.
+Next: exclusive close/freeze, immutable ranking publication and draw recovery.

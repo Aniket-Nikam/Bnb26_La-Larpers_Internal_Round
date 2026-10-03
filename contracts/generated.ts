@@ -2079,8 +2079,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -2509,8 +2509,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -2724,8 +2724,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path?: never;
@@ -2833,8 +2833,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -2944,8 +2944,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -3055,8 +3055,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -3166,8 +3166,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -3380,8 +3380,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -3491,8 +3491,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -3930,7 +3930,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
                     "text/csv": string;
                 };
             };
@@ -4021,8 +4020,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {
@@ -4132,8 +4131,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-CSRF-Token": string;
                 "Idempotency-Key": string;
+                "X-CSRF-Token": string;
                 Origin: string;
             };
             path: {

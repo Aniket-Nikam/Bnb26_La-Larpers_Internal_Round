@@ -27,7 +27,7 @@ class Base(DeclarativeBase):
 
 
 def public_id():
-    return secrets.token_urlsafe(24)
+    return "fd_" + secrets.token_urlsafe(24)
 
 
 class Identity:
