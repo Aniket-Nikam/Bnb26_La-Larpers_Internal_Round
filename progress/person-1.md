@@ -109,3 +109,28 @@ new admission, null lottery fields, ordered frozen proof and confirmed completio
 Remote M2 branches and new origin/main appeared during this checkpoint. Next: inspect
 those read-only, resolve shared-model/interfaces against real owner code and verify
 integrated security journey if an adoptable P2 implementation now exists.
+
+## Final core hardening feature — 2026-10-03 UTC
+
+Previous FCFS commit: 3536139. Fixed UTC/Z wire normalization for offset-bearing
+inputs and database clocks (local PostgreSQL default was Asia/Kolkata). Validated
+canonical origins, bounded pools/ticks and normal placeholder keys; bounded public
+ID inputs; aligned FCFS CSV waitlist status; prevented existing demo drops from
+allocation/public proof in normal profile. Added missed-schedule reconciliation,
+explicit correlated DB-outage checks and direct composite-FK mutation rejection.
+
+Executed: pytest -q 27 passed on real PostgreSQL 18.6 / Python 3.12.14. Upgrade/check
+on fresh UTF-8 DB, downgrade base, upgrade head and check all passed. Actual socket
+API startup/live/ready/public read, worker --once and graceful API SIGTERM passed.
+Initial shutdown smoke incorrectly required exit 0; installed Uvicorn deliberately
+re-raises SIGTERM after graceful shutdown. Corrected the smoke to verify shutdown
+completion and exit 0 or -SIGTERM, then reran successfully. Both contract-generation
+scripts passed; generate:frontend ran in a disposable frontend tree (P3 untouched),
+with TypeScript compilation. Schema/examples export, ruff check and format --check
+passed. One known Starlette/httpx deprecation warning remains, without test failures.
+
+User explicitly instructed: push M1 only, do not merge M2 or change main. Both remote
+M2 implementations remain unmerged. Real authenticated cookie/CSRF/Redis integration,
+frontend browser journey, lab and measured multi-replica/load evidence remain pending
+with their owners. P1-owned domain handlers have no NOT_IMPLEMENTED stubs; only
+security/lab stubs remain, fail closed, and readiness discloses unavailable writes.

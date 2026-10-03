@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from conftest import headers, prepare_open
@@ -12,9 +12,18 @@ from app.persistence import models as m
 def test_publication_locks_policy_grants_and_exact_capacity(api, actors, draft_payload, factory):
     key = uuid4()
     path = "/api/v1/admin/drops"
+    # Inputs may carry an offset, but every response must be canonical UTC with Z.
+    for field in ("starts_at", "ends_at"):
+        draft_payload[field] = (
+            datetime.fromisoformat(draft_payload[field])
+            .astimezone(timezone(timedelta(hours=5, minutes=30)))
+            .isoformat()
+        )
     created = api.post(path, json=draft_payload, headers=headers(actors[0], key))
     assert created.status_code == 201, created.text
     drop_id = created.json()["id"]
+    assert created.json()["starts_at"].endswith("Z")
+    assert created.json()["server_time"].endswith("Z")
     repeat = api.post(path, json=draft_payload, headers=headers(actors[0], key))
     assert repeat.json()["id"] == drop_id
     conflict = api.post(

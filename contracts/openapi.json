@@ -5771,7 +5771,9 @@
         "properties": {
           "user_public_ids": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 64,
+              "minLength": 1
             },
             "type": "array",
             "maxItems": 500,

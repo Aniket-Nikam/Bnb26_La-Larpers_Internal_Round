@@ -17,7 +17,7 @@ def get_engine():
         isolation_level="READ COMMITTED",
         connect_args={
             "connect_timeout": 3,
-            "options": "-c statement_timeout=10000 -c lock_timeout=5000",
+            "options": "-c statement_timeout=10000 -c lock_timeout=5000 -c timezone=UTC",
         },
     )
 

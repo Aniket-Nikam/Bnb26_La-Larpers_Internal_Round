@@ -89,6 +89,12 @@ def test_offer_confirm_refresh_idempotency_and_constraints(api, actors, draft_pa
             select(m.SeatSlot.id).where(m.SeatSlot.drop_id == UUID(second_drop))
         )
         source = active[0]
+    for field, value in (("seat_slot_id", foreign_slot), ("user_id", actors[3].id)):
+        with pytest.raises(IntegrityError):
+            with factory.begin() as db:
+                record = db.get(m.Reservation, source.id)
+                setattr(record, field, value)
+                db.flush()
     with pytest.raises(IntegrityError):
         with factory.begin() as db:
             db.add(

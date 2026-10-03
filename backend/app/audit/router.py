@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.allocation.crypto import reveal_seed
 from app.core import schemas as s
 from app.core.clock import db_now
+from app.core.config import get_settings
 from app.drops.service import not_found
 from app.persistence import models as m
 from app.persistence.database import get_db
@@ -16,7 +17,11 @@ router = APIRouter(tags=["proof"])
 @router.get("/drops/{drop_id}/proof", response_model=s.ProofResponse)
 def proof(drop_id: UUID, db=Depends(get_db)):
     drop = db.get(m.Drop, drop_id)
-    if drop is None or drop.phase == "DRAFT":
+    if (
+        drop is None
+        or drop.phase == "DRAFT"
+        or (drop.mode == "FCFS_DEMO" and get_settings().app_profile != "demo")
+    ):
         not_found()
     run = db.scalar(select(m.DrawRun).where(m.DrawRun.drop_id == drop_id))
     if run is None or run.status != "PUBLISHED":

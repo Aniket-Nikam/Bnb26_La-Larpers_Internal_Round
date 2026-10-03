@@ -45,6 +45,7 @@ def access(db, drop_id, principal, lock=False):
     drop = svc.lock_drop(db, drop_id) if lock else db.get(m.Drop, drop_id)
     if drop is None:
         svc.not_found()
+    svc.ensure_mode(drop)
     svc.owned(drop, principal)  # domain defense even if a hook is misconfigured
     return drop
 
@@ -83,6 +84,10 @@ def drops(
     limit: int = Query(50, ge=1, le=100),
 ):
     statement = select(m.Drop).where(m.Drop.phase != "DRAFT")
+    from app.core.config import get_settings
+
+    if get_settings().app_profile != "demo":
+        statement = statement.where(m.Drop.mode == "LOTTERY")
     if q:
         statement = statement.where(m.Drop.title.icontains(q, autoescape=True))
     if category:
@@ -97,6 +102,10 @@ def drops(
 def drop(drop_id: UUID, request: Request, db: DB):
     value = db.get(m.Drop, drop_id)
     if value is None:
+        svc.not_found()
+    from app.core.config import get_settings
+
+    if value.mode == "FCFS_DEMO" and get_settings().app_profile != "demo":
         svc.not_found()
     if value.phase == "DRAFT":
         try:
@@ -431,7 +440,14 @@ def export(drop_id: UUID, db: DB, principal: ORGANIZER):
         status = (
             "CANCELLED"
             if drop.phase == "CANCELLED"
-            else (reservation_status or ("WAITLISTED" if rank else "ENTERED"))
+            else (
+                reservation_status
+                or (
+                    "WAITLISTED"
+                    if rank or (drop.mode == "FCFS_DEMO" and drop.phase == "OPEN")
+                    else "ENTERED"
+                )
+            )
         )
         writer.writerow([public_id, status, rank])
     return Response(

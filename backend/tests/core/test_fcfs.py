@@ -51,6 +51,8 @@ def test_demo_fcfs_immediate_order_expiry_and_nonlottery_proof(
     assert first.status_code == second.status_code == 201
     assert first.json()["status"] == "OFFERED" and first.json()["rank"] is None
     assert second.json()["status"] == "WAITLISTED" and second.json()["rank"] is None
+    exported = api.get(f"/api/v1/admin/drops/{drop_id}/entries/export", headers=headers(actors[0]))
+    assert f"{second.json()['public_entry_id']},WAITLISTED," in exported.text
     with ThreadPoolExecutor(max_workers=4) as pool:
         repeats = list(
             pool.map(lambda _: api.post(path, json={}, headers=headers(actors[2])), range(8))
@@ -118,3 +120,22 @@ def test_fcfs_exhausted_slot_waits_for_new_admission(
     second = api.post(path, json={}, headers=headers(actors[2]))
     assert second.json()["status"] == "OFFERED"
     assert offered(factory).entry_id == UUID(second.json()["entry_id"])
+
+
+def test_existing_demo_drop_cannot_allocate_in_normal_profile(
+    api, actors, draft_payload, factory, monkeypatch
+):
+    monkeypatch.setattr(get_settings(), "app_profile", "demo")
+    drop_id = prepare_open(
+        api, actors, {**draft_payload, "capacity": 1, "mode": "FCFS_DEMO"}, factory
+    )
+    api.post(f"/api/v1/drops/{drop_id}/entries", json={}, headers=headers(actors[1]))
+    close_due(api, actors, factory, drop_id)
+    monkeypatch.setattr(get_settings(), "app_profile", "normal")
+    assert api.get(f"/api/v1/drops/{drop_id}/proof").status_code == 404
+    assert api.get(f"/api/v1/drops/{drop_id}").status_code == 404
+    assert api.get("/api/v1/drops").json()["items"] == []
+    assert lifecycle.tick(factory) == [UUID(drop_id)]
+    with factory() as db:
+        assert db.get(m.Drop, UUID(drop_id)).phase == "CLOSED"
+        assert db.scalar(select(m.DrawRun.status)) == "FROZEN"

@@ -23,7 +23,13 @@ def lock_drop(db, drop_id, shared=False):
     drop = db.scalar(select(m.Drop).where(m.Drop.id == drop_id).with_for_update(read=shared))
     if drop is None:
         not_found()
+    ensure_mode(drop)
     return drop
+
+
+def ensure_mode(drop):
+    if drop.mode == "FCFS_DEMO" and get_settings().app_profile != "demo":
+        raise DomainError("FORBIDDEN", "FCFS comparison requires the isolated demo profile.", 403)
 
 
 def owned(drop, principal):

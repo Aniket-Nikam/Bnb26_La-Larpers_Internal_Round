@@ -24,6 +24,21 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_profile(self):
+        origin = urlparse(self.public_origin)
+        if (
+            origin.scheme not in {"http", "https"}
+            or not origin.netloc
+            or origin.username
+            or origin.password
+            or origin.path
+            or origin.query
+            or origin.fragment
+        ):
+            raise ValueError("PUBLIC_ORIGIN must be a canonical HTTP(S) origin")
+        if not 1 <= self.db_pool_size <= 100 or not 0 <= self.db_max_overflow <= 100:
+            raise ValueError("Database pools must be positive and bounded")
+        if not 0.1 <= self.worker_tick_seconds <= 60:
+            raise ValueError("Worker tick must be 0.1..60 seconds")
         if not 1 <= self.worker_batch <= 100:
             raise ValueError("worker_batch must be 1..100")
         if self.app_profile == "normal":
@@ -31,7 +46,10 @@ class Settings(BaseSettings):
                 raise ValueError("normal profile requires HTTPS and Secure cookies")
             for secret in (self.session_digest_key, self.credential_digest_key):
                 value = secret.get_secret_value()
-                if len(value) < 32 or "CHANGE_ME" in value:
+                if len(value) < 32 or any(
+                    marker in value.lower()
+                    for marker in ("change_me", "changeme", "default", "insecure", "example")
+                ):
                     raise ValueError("normal profile requires configured stable digest keys")
             self.seed_key()
         return self
@@ -41,7 +59,7 @@ class Settings(BaseSettings):
             key = base64.b64decode(self.seed_encryption_key.get_secret_value(), validate=True)
         except ValueError:
             raise ValueError("SEED_ENCRYPTION_KEY must be base64 of 32 random bytes") from None
-        if len(key) != 32:
+        if len(key) != 32 or (self.app_profile == "normal" and len(set(key)) == 1):
             raise ValueError("SEED_ENCRYPTION_KEY must be base64 of 32 random bytes")
         return key
 

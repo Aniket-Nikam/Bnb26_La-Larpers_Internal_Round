@@ -1,12 +1,22 @@
 """Normative v1.0 wire schemas shared by P1/P2/P3/P4."""
 
-from datetime import datetime
+from datetime import UTC
 from enum import StrEnum
 from typing import Annotated, Generic, Literal, TypeVar
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+
+UtcDatetime = Annotated[AwareDatetime, AfterValidator(lambda value: value.astimezone(UTC))]
 
 
 class DTO(BaseModel):
@@ -78,8 +88,8 @@ class SessionInput(DTO):
 class SessionResponse(DTO):
     principal: Principal
     csrf_token: str
-    expires_at: datetime
-    server_time: datetime
+    expires_at: UtcDatetime
+    server_time: UtcDatetime
 
 
 class ProfilePatch(DTO):
@@ -99,7 +109,7 @@ class ProfilePatch(DTO):
 
 class ProfileResponse(DTO):
     principal: Principal
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class PublicOrganizer(DTO):
@@ -114,8 +124,8 @@ class DropSummary(DTO):
     organizer: PublicOrganizer
     location_type: Literal["online", "venue"]
     location_label: str
-    starts_at: datetime
-    ends_at: datetime
+    starts_at: UtcDatetime
+    ends_at: UtcDatetime
     capacity: int
     phase: DropPhase
     mode: AllocationMode
@@ -127,7 +137,7 @@ class DropDetail(DropSummary):
     rules_version: str
     eligibility_policy: Literal["invitation"] = "invitation"
     seed_commitment: str | None
-    server_time: datetime
+    server_time: UtcDatetime
     cancellation_reason: str | None
 
 
@@ -135,8 +145,8 @@ class Reservation(DTO):
     id: UUID
     seat_slot_id: UUID
     status: Literal["OFFERED", "CONFIRMED", "EXPIRED"]
-    expires_at: datetime
-    confirmed_at: datetime | None
+    expires_at: UtcDatetime
+    confirmed_at: UtcDatetime | None
 
 
 class EntryState(DTO):
@@ -144,12 +154,12 @@ class EntryState(DTO):
     public_entry_id: str
     drop_id: UUID
     status: EntryStatus
-    joined_at: datetime
+    joined_at: UtcDatetime
     receipt_id: str
     draw_id: UUID | None
     rank: int | None = Field(ge=1)
     reservation: Reservation | None
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class Eligibility(DTO):
@@ -160,7 +170,7 @@ class Eligibility(DTO):
 class MyDropState(DTO):
     entry: EntryState | None
     eligibility: Eligibility
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class Receipt(DTO):
@@ -189,7 +199,7 @@ class InventoryMetrics(DTO):
     expired_reservations: int
     duplicate_active_owners: int
     integrity_ok: bool
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class AuditRecord(DTO):
@@ -199,7 +209,7 @@ class AuditRecord(DTO):
     object_id: UUID
     actor_public_id: str | None
     reason: str | None
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class DrawStatus(DTO):
@@ -209,7 +219,7 @@ class DrawStatus(DTO):
     processed_entries: int
     total_entries: int
     recoverable_error: str | None
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class DraftInput(DTO):
@@ -219,8 +229,8 @@ class DraftInput(DTO):
     location_type: Literal["online", "venue"]
     location_label: str = Field(min_length=1, max_length=200)
     capacity: int = Field(ge=1, le=500)
-    starts_at: AwareDatetime
-    ends_at: AwareDatetime
+    starts_at: UtcDatetime
+    ends_at: UtcDatetime
     confirmation_seconds: int = Field(ge=1, le=604800)
     mode: AllocationMode = AllocationMode.LOTTERY
 
@@ -238,8 +248,8 @@ class DraftPatch(DTO):
     location_type: Literal["online", "venue"] | None = None
     location_label: str | None = Field(default=None, min_length=1, max_length=200)
     capacity: int | None = Field(default=None, ge=1, le=500)
-    starts_at: AwareDatetime | None = None
-    ends_at: AwareDatetime | None = None
+    starts_at: UtcDatetime | None = None
+    ends_at: UtcDatetime | None = None
     confirmation_seconds: int | None = Field(default=None, ge=1, le=604800)
     mode: AllocationMode | None = None
 
@@ -255,14 +265,16 @@ class CancelInput(DTO):
 
 
 class GrantInput(DTO):
-    user_public_ids: list[str] = Field(min_length=1, max_length=500)
+    user_public_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
+        min_length=1, max_length=500
+    )
 
 
 class GrantSummary(DTO):
     drop_id: UUID
     granted_count: int
     existing_count: int
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class PendingProof(DTO):
@@ -270,7 +282,7 @@ class PendingProof(DTO):
     phase: DropPhase
     seed_commitment: str | None
     manifest_commitment: str | None
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class ProofEntry(DTO):
@@ -290,7 +302,7 @@ class PublishedProof(DTO):
     seed_commitment: str | None
     manifest_commitment: str
     entries: list[ProofEntry] = Field(max_length=50000)
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 ProofResponse = Annotated[PendingProof | PublishedProof, Field(discriminator="status")]
@@ -333,7 +345,7 @@ class RunProgress(DTO):
 
 class RunProvenance(DTO):
     source: Literal["measured", "supplied_unreproduced"]
-    timestamp: datetime
+    timestamp: UtcDatetime
     contract_version: str
     algorithm_version: str
     app_commit: str
@@ -447,9 +459,9 @@ class RunSummary(DTO):
     run_id: UUID
     status: RunStatus
     scenario: Scenario
-    started_at: datetime | None
-    ended_at: datetime | None
-    server_time: datetime
+    started_at: UtcDatetime | None
+    ended_at: UtcDatetime | None
+    server_time: UtcDatetime
 
 
 class RunDetail(RunSummary):
@@ -462,19 +474,19 @@ class RunDetail(RunSummary):
 class RunAccepted(DTO):
     run_id: UUID
     status: Literal["QUEUED"]
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class RunStopped(DTO):
     run_id: UUID
     status: RunStatus
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class ReportPending(DTO):
     status: Literal["pending"] = "pending"
     run_id: UUID
-    server_time: datetime
+    server_time: UtcDatetime
 
 
 class LiveHealth(DTO):
