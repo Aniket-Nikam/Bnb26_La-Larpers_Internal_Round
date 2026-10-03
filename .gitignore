@@ -1,0 +1,12 @@
+.env
+reports/*/
+!reports/README.md
+private/
+test-results/
+playwright-report/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.tmp/
+node_modules/
+frontend/dist/

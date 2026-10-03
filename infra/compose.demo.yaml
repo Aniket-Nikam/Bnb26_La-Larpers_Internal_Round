@@ -1,0 +1,51 @@
+services:
+  api-a:
+    environment: &demo-api-environment
+      APP_PROFILE: demo
+      LAB_ENABLED: "true"
+      FCFS_DEMO_ENABLED: "true"
+      FIXTURE_SEEDING_ENABLED: "true"
+      DEVELOPMENT_MOCKS_ENABLED: "false"
+      LAB_TARGET_ORIGIN: ${LAB_TARGET_ORIGIN:-http://gateway:8080}
+      LAB_MAX_RPS: ${LAB_MAX_RPS:-2000}
+      LAB_MAX_IDENTITIES: ${LAB_MAX_IDENTITIES:-50000}
+      LAB_MAX_DURATION_SECONDS: ${LAB_MAX_DURATION_SECONDS:-300}
+      LAB_MAX_TRIALS: ${LAB_MAX_TRIALS:-20}
+      LAB_MAX_RETRIES_PER_ACTOR: ${LAB_MAX_RETRIES_PER_ACTOR:-20}
+      LAB_ARTIFACT_ROOT: ${LAB_ARTIFACT_ROOT:-/var/lib/fairdrop/lab}
+      LAB_PRIVATE_FIXTURE_ROOT: ${LAB_PRIVATE_FIXTURE_ROOT:-/run/secrets/fairdrop-lab}
+    volumes:
+      - lab-artifacts:/var/lib/fairdrop/lab
+      - ./private/lab:/run/secrets/fairdrop-lab:ro
+
+  api-b:
+    environment: *demo-api-environment
+    volumes:
+      - lab-artifacts:/var/lib/fairdrop/lab
+      - ./private/lab:/run/secrets/fairdrop-lab:ro
+
+  runner:
+    profiles: ["lab"]
+    build:
+      context: ./backend
+      target: lab-runner
+    restart: unless-stopped
+    environment:
+      APP_PROFILE: demo
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      LAB_TARGET_ORIGIN: ${LAB_TARGET_ORIGIN:-http://gateway:8080}
+      LAB_MAX_RPS: ${LAB_MAX_RPS:-2000}
+      LAB_MAX_IDENTITIES: ${LAB_MAX_IDENTITIES:-50000}
+      LAB_ARTIFACT_ROOT: /var/lib/fairdrop/lab
+      LAB_PRIVATE_FIXTURE_ROOT: /run/secrets/fairdrop-lab
+    volumes:
+      - lab-artifacts:/var/lib/fairdrop/lab
+      - ./private/lab:/run/secrets/fairdrop-lab:ro
+    depends_on:
+      gateway:
+        condition: service_started
+    networks: [app]
+
+volumes:
+  lab-artifacts:
