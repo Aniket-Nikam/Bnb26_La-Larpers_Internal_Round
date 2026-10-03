@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { ShieldAlert, Users, Bot, Download, Play, Square } from 'lucide-react';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { TicketCard, TicketDivider } from '../components/Ticket';
-import { DEV_FIXTURES } from './PublicPages';
+import { DEV_FIXTURES } from '../fixtures';
 
 const mockMetrics = [
   { time: '0s', humans: 0, bots: 0 },

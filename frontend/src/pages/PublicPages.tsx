@@ -1,13 +1,8 @@
 import { motion } from 'framer-motion';
-import { ShieldCheck, Ticket, CheckCircle2, ChevronRight, Lock } from 'lucide-react';
+import { ShieldCheck, Ticket, ChevronRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TicketCard, TicketDivider } from '../components/Ticket';
-
-export const DEV_FIXTURES = {
-  drops: [
-    { id: 'drop_1', name: 'FairDrop Inaugural Event', status: 'OPEN', capacity: 100 }
-  ]
-};
+import { DEV_FIXTURES } from '../fixtures';
 
 export function LandingPage() {
   return (
