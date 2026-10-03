@@ -1,24 +1,40 @@
-# FairDrop — implementation memory
+# FairDrop implementation memory
 
-Updated UTC: 2026-10-03. Central writer: P1 until bootstrap handoff, then P4.
-Integration branch: main at 7eedd2f. Implementation branch: M1; not merged.
-Phase: 0, shared foundation in progress. No integrated gate or human review claimed.
+Current phase: M1/M2/M3/M4 integrated on `main`. User explicitly authorized merging
+M1 into main and integrating the merged team implementations. The earlier
+instruction to push only M1 is superseded for this integration request.
 
-The template is currently misnamed docs/memory.md; docs/memory.template.md does not exist.
-This active root memory records implementation; canonical specifications remain in docs/ per user.
-Existing TypeScript ingress experiments are preserved, outside the default lottery runtime.
-P2/P3 are not present in this checkout; P4 branch origin/codex/m4-infra-lab was inspected read-only.
-Environment: Python 3.12 via uv; local PostgreSQL 18 available. Checks pending.
+Main originally: `2c4f3db` (already contained M2, M3 and M4).
+M1 delivered branch: `0fd2104`. Integration runtime checkpoint: `85ddb79`; build/runner hardening: `b869f6d`.
+Separate commits cover merge/security, frontend, migration compatibility, and
+measured lab/runtime integration. No alternate M2 branch was merged.
 
-P1 creates the shared DTOs, models/migrations, imports and contract. Model fields are a
-concrete proposed handoff; P2/P4 consumer acknowledgement remains pending.
-P2 owns security after bootstrap; P4 owns lab and this central log after bootstrap.
-Next: finish/check bootstrap, publish checkpoint, implement P1 domain and real-DB checks.
+One ORM, psycopg/uv dependency stack, migration head `d3f100000001`, shared DTOs,
+31 v1 API paths and generated frontend types. Sessions use `fd_session`; role,
+Origin/CSRF, revocation and Redis limits are active across the domain routes.
+M2 historical tables remain archived; identities and credential digests migrate,
+unbound old sessions require re-login. M1 allocations retain immutable manifests,
+rankings and durable worker recovery. Frontend fixtures were removed.
 
-Bootstrap checks executed: locked uv install; migration upgrade/check on local
-PostgreSQL 18 UTF-8, typed schema/examples export, TypeScript generation+compile,
-pytest core 3 passed. Contract v1.0; migration b3194d72d2b4. Known warning: Starlette
-httpx test adapter deprecation. No login/limiter/lab implementation or integration
-claimed. Bootstrap handoff is contracts/HANDOFF.md; P2/P4 adoption pending.
-Central memory ownership is handed to P4 at the bootstrap commit; P1 subsequently
-updates progress/person-1.md only. Not merged to main. No human review performed.
+Lab jobs use shared LabRun rows and a separate isolated worker. Fresh synthetic
+accounts/grants/drops are provisioned per independent trial. k6 uses ordinary HTTP
+routes; reports reconcile database outcomes, proof and measured HTTP samples.
+Stopped/interrupted runs retain partial artifacts and are never marked complete.
+Normal profile disables lab/FCFS; host-controlled outage/topology scenarios are
+manual and rejected by the unattended lab API.
+
+Verification: 93 backend tests + 4 subtests; real PostgreSQL 18.6 and Redis 8.2.1;
+fresh, M2-legacy and M1-upgrade/downgrade checks; no metadata drift; frontend build,
+lint and 0 production dependency vulnerabilities. Real two-process quota,
+Redis shutdown/recovery, k6 normal/policy/two-trial/stop/crash checks and browser
+organizer/participant/confirmed receipt refresh passed.
+
+Docker configuration and base manifests were checked, but the local Docker
+daemon is unavailable, so image builds/full Compose startup are unverified.
+Tailwind 3 retains 5 development-only transitive audit findings; a major Tailwind
+migration is required for the suggested fix. No production deployment, scale
+benchmark or human review is claimed. Details: INTEGRATION_REPORT.md.
+
+Canonical specifications remain in docs/. Existing TypeScript ingress experiments
+are preserved outside the default runtime. Runtime artifacts and synthetic secret
+fixtures used for tests stayed under /tmp; public aggregate evidence is in reports/.

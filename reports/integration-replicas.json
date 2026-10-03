@@ -1,0 +1,12 @@
+{
+  "two_process_status_budget": {
+    "allowed": 30,
+    "rate_limited": 10
+  },
+  "redis_outage": {
+    "session_read": 200,
+    "protected_write": 503,
+    "readiness": "degraded"
+  },
+  "redis_recovery_profile_write": 200
+}

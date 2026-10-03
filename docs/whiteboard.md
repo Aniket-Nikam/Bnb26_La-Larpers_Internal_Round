@@ -242,3 +242,15 @@ explicit test-only security adapter. Fresh migrations/consistency and downgrade-
 OpenAPI/schema fixtures, TypeScript compilation, API socket smoke and worker entrypoint
 passed. Exact commands and known initial failures are in progress/person-1.md and
 contracts/HANDOFF.md. No raw credentials or unrevealed seed were recorded here.
+
+
+## Main integration evidence — 2026-10-04 IST
+
+M1 merged with already-merged M2/M3/M4 by explicit user authorization. One shared
+ORM/DTO/migration path; real security, frontend and lab APIs are connected.
+93 backend tests + 4 subtests passed against PostgreSQL/Redis. Real browser
+organizer and participant receipt confirmation/refresh, two-process quota, Redis
+outage/recovery, measured k6 policy/trial and stop/crash checks passed. Evidence
+is recorded in INTEGRATION_REPORT.md. Docker config validates; container execution
+is unverified because the daemon is unavailable. Await human review; no team
+signoff, 50k benchmark, or production deployment claimed.

@@ -1,0 +1,229 @@
+{
+  "provenance": {
+    "source": "measured",
+    "timestamp": "2026-10-03T19:13:27.143563Z",
+    "contract_version": "v1.0",
+    "algorithm_version": "hmac-sha256-v1",
+    "app_commit": "b869f6d",
+    "environment": "isolated demo",
+    "hardware": "Linux x86_64"
+  },
+  "workload": {
+    "provisioned_identity_count": 4,
+    "actors_by_cohort": {
+      "human": 2,
+      "bot": 2
+    },
+    "request_rate_target": 12.0,
+    "scheduled_iterations": 5,
+    "delivered_iterations": 5,
+    "dropped_iterations": 0,
+    "achieved_rps": 4.997857032189357,
+    "peak_open_connections": null,
+    "peak_inflight_requests": null,
+    "generator_cpu_peak": null,
+    "generator_memory_peak": null
+  },
+  "admission": {
+    "human": {
+      "attempted_unique_identities": 2,
+      "accepted_unique_identities": 2,
+      "admission_rate": 1.0
+    },
+    "bot": {
+      "attempted_unique_identities": 2,
+      "accepted_unique_identities": 2,
+      "admission_rate": 1.0
+    }
+  },
+  "allocation": {
+    "human": {
+      "eligible_identities": 2,
+      "initial_offers": 1,
+      "confirmed": 0,
+      "expired": 0,
+      "actor_credentials": 2,
+      "win_rate": 0.5
+    },
+    "bot": {
+      "eligible_identities": 2,
+      "initial_offers": 1,
+      "confirmed": 0,
+      "expired": 0,
+      "actor_credentials": 2,
+      "win_rate": 0.5
+    },
+    "bot_advantage": 1.0,
+    "undefined_reason": null
+  },
+  "integrity": {
+    "capacity": 2,
+    "maximum_observed_owned_slots": 2,
+    "duplicate_active_owners": 0,
+    "oversell_count": 0,
+    "audit_pass": true
+  },
+  "performance": {
+    "successful_request_latency_ms": {
+      "p50": 47.332414,
+      "p95": 92.30098499999998,
+      "p99": 100.2438514
+    },
+    "endpoint_status_breakdown": [
+      {
+        "endpoint": "entry",
+        "status": 200,
+        "count": 2,
+        "latency_ms": {
+          "p50": 42.155998,
+          "p95": 44.3917249,
+          "p99": 44.59045618
+        }
+      },
+      {
+        "endpoint": "entry",
+        "status": 201,
+        "count": 8,
+        "latency_ms": {
+          "p50": 70.433122,
+          "p95": 97.2652765,
+          "p99": 101.23670969999999
+        }
+      },
+      {
+        "endpoint": "login",
+        "status": 200,
+        "count": 5,
+        "latency_ms": {
+          "p50": 26.260592,
+          "p95": 30.2952826,
+          "p99": 30.85545332
+        }
+      }
+    ],
+    "expected_429": 0,
+    "expected_403": 0,
+    "expected_409": 0,
+    "unexpected_5xx": 0,
+    "network_errors": 0
+  },
+  "statistics": {
+    "trials": 1,
+    "sample_sizes": {
+      "human": 2,
+      "bot": 2
+    },
+    "interval_method": null,
+    "intervals": null
+  },
+  "limitations": [
+    "Synthetic provisioned identities; no claim of real-world personhood or bot detection.",
+    "Allocation observations are taken after draw publication and initial offering; later confirmations and expiries may change live inventory.",
+    "Generator CPU, memory, connection and inflight peaks were not instrumented and are null.",
+    "Arrival rates are calibrated to expected HTTP requests per healthy iteration. Admission failures, retries, and short-run boundary effects can change achieved HTTP RPS.",
+    "One trial does not support a trial-level confidence interval.",
+    "Top-level allocation describes LOTTERY; policy_comparison separates FCFS_DEMO and LOTTERY outcomes for the same provisioned trial identities."
+  ],
+  "policy_comparison": {
+    "LOTTERY": {
+      "admission": {
+        "human": {
+          "attempted_unique_identities": 2,
+          "accepted_unique_identities": 2,
+          "admission_rate": 1.0
+        },
+        "bot": {
+          "attempted_unique_identities": 2,
+          "accepted_unique_identities": 2,
+          "admission_rate": 1.0
+        }
+      },
+      "allocation": {
+        "human": {
+          "eligible_identities": 2,
+          "initial_offers": 1,
+          "confirmed": 0,
+          "expired": 0,
+          "actor_credentials": 2,
+          "win_rate": 0.5
+        },
+        "bot": {
+          "eligible_identities": 2,
+          "initial_offers": 1,
+          "confirmed": 0,
+          "expired": 0,
+          "actor_credentials": 2,
+          "win_rate": 0.5
+        },
+        "bot_advantage": 1.0,
+        "undefined_reason": null
+      },
+      "integrity": {
+        "capacity": 2,
+        "maximum_observed_owned_slots": 2,
+        "duplicate_active_owners": 0,
+        "oversell_count": 0,
+        "audit_pass": true
+      },
+      "statistics": {
+        "trials": 1,
+        "sample_sizes": {
+          "human": 2,
+          "bot": 2
+        },
+        "interval_method": null,
+        "intervals": null
+      }
+    },
+    "FCFS_DEMO": {
+      "admission": {
+        "human": {
+          "attempted_unique_identities": 2,
+          "accepted_unique_identities": 2,
+          "admission_rate": 1.0
+        },
+        "bot": {
+          "attempted_unique_identities": 2,
+          "accepted_unique_identities": 2,
+          "admission_rate": 1.0
+        }
+      },
+      "allocation": {
+        "human": {
+          "eligible_identities": 2,
+          "initial_offers": 0,
+          "confirmed": 0,
+          "expired": 0,
+          "actor_credentials": 2,
+          "win_rate": 0.0
+        },
+        "bot": {
+          "eligible_identities": 2,
+          "initial_offers": 2,
+          "confirmed": 0,
+          "expired": 0,
+          "actor_credentials": 2,
+          "win_rate": 1.0
+        },
+        "bot_advantage": null,
+        "undefined_reason": "human initial-offer rate is zero while bot rate is positive"
+      },
+      "integrity": {
+        "capacity": 2,
+        "maximum_observed_owned_slots": 2,
+        "duplicate_active_owners": 0,
+        "oversell_count": 0,
+        "audit_pass": true
+      },
+      "statistics": {
+        "trials": 1,
+        "sample_sizes": {
+          "human": 2,
+          "bot": 2
+        },
+        "interval_method": null,
+        "intervals": null
+      }
+    }
+  }
+}

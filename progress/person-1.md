@@ -1,9 +1,11 @@
 # M1 / P1 implementation progress
 
-Branch: M1 from main 7eedd2f. Foundation in progress, not integrated.
+Current: M1 merged into main at 7620ca3 by explicit user request; integration verified.
+Original feature history below records the separate M1 delivery.
 Owned: backend core/persistence/drops/allocation/audit, main, dependencies, migrations,
 contracts, this record. Security/lab skeletons only during bootstrap.
-No checks or human review claimed yet. P2 auth/limiter and P4 lab remain dependencies.
+Integrated checks: 93 tests + 4 subtests, real HTTP/browser/k6 flows passed.
+No human review or production deployment claimed. See INTEGRATION_REPORT.md.
 
 ## Foundation feature checkpoint — 2026-10-03 UTC
 
@@ -145,3 +147,25 @@ All seven implementation feature commits are on M1. Documentation checkpoint fol
 push only origin/M1, never main, and keep both M2 branches unmerged per user instruction.
 M1 branch is not integrated into main. Next owner action: consume this checkpoint,
 coordinate security adapters/models, regenerate frontend types and run the real journey.
+
+## Main integration checkpoint — 2026-10-04 IST
+
+User authorized main integration after M2/M3/M4 were merged remotely. Merge
+7620ca3 adopts M1's shared database/DTOs and ports M2's security to those interfaces.
+Frontend 85c06bb consumes real typed APIs and removes fixtures. Migration fix
+35a3332 supports both legacy M2 and pre-existing M1 downgrade paths. Lab/runtime
+85ddb79 connects shared durable jobs to the isolated k6 runner and DB-reconciled
+reports, independent trials and separated policy comparison.
+
+Executed 93 real-database/Redis backend tests + 4 subtests, frontend build/lint,
+contract generation, migration upgrade/downgrade/checks and registry/Compose
+configuration checks. Real sockets verify shared quotas across two processes,
+Redis degradation/recovery, k6 runs, stopping and SIGKILL/restart lab behavior.
+Browser verified organizer draft/grant/publish and participant entry/offer/confirm/
+receipt/refresh. Container startup remains unverified because the daemon is absent;
+no scale or production deployment claim. Full evidence: INTEGRATION_REPORT.md.
+
+Build/runner hardening b869f6d pins uv 0.12.22 / Python 3.12.14 to match the
+verified lock environment, removes private fixture mounts from API replicas,
+caps the runner at 1 GiB / 2 CPUs and keeps k6 identities/indexes in SharedArray
+storage. Fresh production-only dependency installation imports all 31 API paths.

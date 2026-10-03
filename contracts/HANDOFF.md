@@ -1,4 +1,17 @@
-# M1 implementation handoff / wire contract v1.0
+# Integrated implementation handoff / wire contract v1.0
+
+
+Current integration supersedes the bootstrap-only status notes below. M1/M2/M3/M4
+are integrated on main; auth/profile and lab routes are implemented. Session cookie
+is fd_session. All imports run as app.* from backend/. Security hooks are sync and
+return shared Principal DTOs; protected mutations enforce Origin and CSRF before
+domain operations. Redis limits are shared across replicas. Migration head is
+d3f100000001. Generated frontend types live in frontend/src/lib/api/generated.ts.
+Lab RunReport has an optional additive policy_comparison mapping for matched policy
+outcomes; the top-level report describes LOTTERY in comparison runs.
+
+See ../INTEGRATION_REPORT.md and ../README.md for current commands and evidence.
+Historical owner handoff notes below describe M1 before this authorized integration.
 
 Source: docs/architecture.md. Canonical docs remain in docs/ per user's instruction.
 No second API or frontend is created. Old TypeScript ingress experiments are preserved.

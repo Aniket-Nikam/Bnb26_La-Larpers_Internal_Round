@@ -1,7 +1,7 @@
-.PHONY: preflight config up demo-up down migrate backend-test e2e load-smoke reset-demo
+.PHONY: preflight config up demo-up down migrate backend-test frontend-check http-smoke reset-demo
 
 preflight:
-	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight.ps1
+	python3 scripts/preflight.py
 
 config:
 	docker compose --env-file .env config --quiet
@@ -19,13 +19,13 @@ migrate:
 	docker compose --env-file .env run --rm migrate
 
 backend-test:
-	python -m unittest discover -s backend/tests/lab -p "test_*.py" -v
+	cd backend && uv run pytest -q
 
-e2e:
-	npx playwright test
+frontend-check:
+	cd frontend && npm run lint && npm run build
 
-load-smoke:
-	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight.ps1 -RequireLoadTools
+http-smoke:
+	python3 scripts/http_smoke.py --credential-file private/organizer.json --output reports/local-smoke.json
 
 reset-demo:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo_reset.ps1 -IUnderstandThisDeletesDemoData

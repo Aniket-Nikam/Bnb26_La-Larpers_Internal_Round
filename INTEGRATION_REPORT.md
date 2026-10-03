@@ -1,81 +1,103 @@
-# P2 + P3 + P4 integration report
+# Integrated main verification
 
-Date: 2026-10-03
+Verified 2026-10-03 UTC / 2026-10-04 IST. Application runtime checkpoint: `85ddb79`; build/runner hardening: `b869f6d`.
+Saved reports identify the exact source checkpoint used.
+M1 (`0fd2104`) was merged into main (`2c4f3db`), which already contained M2,
+M3 and M4. Integration commits unify security, connect the frontend, and execute
+measured lab jobs. No secondary M2 branch was merged.
 
-## Integrated sources
+## Resulting application
 
-| Area | Source | Revision |
-| --- | --- | --- |
-| P3 frontend | `origin/main` | `31fbb41` |
-| P2 security backend | `origin/M2` | `7f62464` |
-| P4 infrastructure and attack lab | `origin/codex/m4-infra-lab` | `f2bde41` |
-| Integration branch | `codex/integration` | merge commits `5b1705d`, `49f3c08` |
+- One sync SQLAlchemy/psycopg persistence system and Alembic head `d3f100000001`.
+  P2 authentication now uses P1's transactions, UUID models and shared v1 DTOs.
+  `uv.lock` is authoritative; `requirements.txt` is its generated production export.
+- Real invitation login, durable opaque `fd_session` cookies, strict Origin and
+  CSRF checks, privilege allowlists, owner checks, credential revocation, and
+  atomic Redis account/session/credential/network/global limits. Login does not
+  mint identities or invitations. Logout clears the actual returned cookie.
+- Complete drop, eligibility, idempotency, receipt, draw, reservation, expiry,
+  promotion, inventory and public proof routes. Frozen membership and ranking
+  remain immutable. The independent verifier reproduces the lottery ordering.
+- Real typed frontend: discovery, sign-in/out, invitation check, saved entry,
+  offer countdown, confirmation, receipts, proof download, organizer create/edit,
+  grants/revocation, publication/cancellation, metrics/audit/CSV, profile and lab.
+  Mock fixtures and fabricated lab counters were removed.
+- PostgreSQL-authoritative lab jobs, one active job across replicas, owner-scoped
+  reports/exports, dedicated bounded k6 runner, fresh matched identities/drops
+  per trial, real HTTP operations, and DB/proof reconciliation. Stops retain
+  artifacts; interrupted generator jobs are failed explicitly on worker restart.
+  Policy comparison reports policies separately. Trial bootstrap intervals use
+  independent trial outcomes; one trial reports no confidence interval.
+- Runtime/frontend Dockerfiles and Compose wiring are present. The gateway is
+  the sole trusted proxy. Uvicorn leaves peer addresses intact for IP validation.
+  PostgreSQL 18's volume mount uses `/var/lib/postgresql`; private lab fixtures
+  live in a separate restricted runner-only volume. The runner has a 1 GiB /
+  2 CPU budget; identity records and cohort indexes use k6 SharedArray storage. Normal profile disables lab/FCFS.
 
-`origin/codex/m2-security` was not layered on top of `origin/M2`. It is an
-earlier, protocol-based alternative that replaces the same security modules and
-does not contain the FastAPI entrypoint, SQLAlchemy models, migrations, or locked
-backend requirements provided by `origin/M2`.
-
-## Verification results
+## Executed checks
 
 | Check | Result |
 | --- | --- |
-| Merge conflicts | Resolved; only `.gitignore` required a manual union |
-| P4 lab unit tests | PASS: 14/14 |
-| P2/P4 pytest collection | PASS: 60 tests collected |
-| Python bytecode compilation | PASS |
-| Python dependency consistency | PASS: `pip check` found no broken requirements |
-| Backend liveness | PASS: `/api/health/live` returned 200/alive |
-| Backend dependency degradation | PASS: readiness reported PostgreSQL and Redis unavailable without a 500 |
-| Frontend lint | PASS |
-| Frontend production build | PASS: 2,932 modules transformed |
-| Production npm audit | PASS: 0 known production vulnerabilities |
-| Compose normal profile parse | PASS |
-| Compose demo profile parse | PASS |
-| Performance-scenario JavaScript syntax | PASS |
-| Full P2 database/Redis suite | NOT RUN: isolated services unavailable |
-| Real k6 traffic | NOT RUN: k6 is not installed and allocation routes are absent |
-| Full Compose build/start | BLOCKED by missing P1/packaging files listed below |
+| Backend pytest against PostgreSQL 18.6 UTF-8 and Redis 8.2.1 | **93 passed**, plus 4 unittest subtests |
+| Backend Ruff lint and formatting | Passed |
+| Fresh migration / metadata comparison | Passed; one head, no drift |
+| M2 legacy migration with an existing inactive user, credential and session | Identity/digest/label preserved; session archived and requires re-login |
+| Legacy downgrade to P2 revision and re-upgrade | Passed |
+| Already-stamped M1 database clone downgrade/re-upgrade | Passed |
+| Shared contract export and both generated TS outputs | Passed; 31 paths |
+| Frontend TypeScript production build and lint | Passed |
+| Production dependency audit | 0 vulnerabilities |
+| Browser organizer flow | Login, draft creation, real grant, publication, live inventory and lab report passed |
+| Browser participant flow | Login, eligibility, entry, offer, confirmation, receipt and refresh passed |
+| Independent lottery proof verification | Passed, including real authenticated integration journey |
+| Two independent socket API processes | Shared 30-read budget: exactly 30 allowed / 10 rate-limited across two sessions |
+| Actual Redis shutdown/restart | Readiness degraded; session read 200, protected write 503; same-key profile retry recovered with 200 |
+| Actual k6 normal run | Completed; HTTP and DB results reconciled; no oversell/duplicate owner/5xx/network error |
+| Actual matched FCFS/lottery run | Completed; both policy inventory audits passed |
+| Actual two independent k6 trials | Completed; 8 provisioned identities; measured trial bootstrap intervals |
+| Actual running-job stop | STOPPED; partial generator artifacts retained |
+| SIGKILL of isolated lab worker and replacement worker startup | FAILED / LAB_RUN_INTERRUPTED; partial artifacts retained |
+| Normal and demo Compose configuration | Validated with Docker Compose 2.39.4 |
+| Dockerfile base image references | Registry manifests verified for Python 3.12.14, uv 0.12.22 and k6 1.3.0 |
+| Production-only locked environment | Fresh frozen install imports all 31 API paths |
+| Private environment initializer | Refuses incomplete normal origin; mode 0600; preserves existing file |
 
-The full npm development-tree audit still reports five high-severity findings
-through Tailwind CSS 3 build tooling. npm's offered fix is a Tailwind 4 major
-upgrade. These packages are build-only and are not present in the production
-dependency audit, but the toolchain upgrade should be scheduled and regression
-tested.
+Core tests keep their clearly labelled test-only security adapter for deterministic
+allocation races. Security and integration tests exercise real authentication,
+CSRF and Redis with no bypass. The additional socket and browser checks exercise
+separate running processes. Core coverage includes concurrent entry/confirmation,
+row-lock deadline boundaries, sealed snapshots, and allocation worker SIGKILL
+recovery. Test fixtures refuse non-test-profile databases and require `_test`
+PostgreSQL names plus Redis database 1 or 15.
 
-The production build also warns that its main JavaScript chunk is about 768 kB
-(234 kB gzip), above Vite's 500 kB advisory threshold. Route-level code splitting
-is recommended before treating frontend performance as finalized.
+## Evidence and practical limits
 
-## Integration fixes applied
+- [Measured normal smoke](reports/integration-smoke.json),
+  [matched policies](reports/integration-policy-comparison.json),
+  [two trials](reports/integration-two-trials.json), and
+  [replica/outage evidence](reports/integration-replicas.json).
+- [Refreshed confirmed browser receipt](reports/browser-confirmation.png).
+- These are small real smoke workloads. No 50,000-identity benchmark, sustained
+  production capacity, or universal fairness conclusion is claimed. Lottery
+  fairness is conditional on the admitted, frozen pool and identity provisioning.
+- CPU/memory/connection/inflight generator peaks are uninstrumented and null.
+  Offer outcomes are observed after initial allocation; subsequent confirmation
+  and expiry can change live inventory. Target RPS is calibrated to healthy
+  iteration request counts; short schedules, failures and retries change achieved RPS.
+- Shared-IP topology and host-controlled Redis/worker disruption scenarios remain
+  explicit manual experiments using `scripts/failure_injection.ps1`; the API
+  rejects unattended requests for those three scenarios.
+- Docker's daemon is unavailable in this environment. Container image builds and
+  full Compose startup were **not executed**. Equivalent application processes,
+  workers, database, Redis, k6 and browser paths were run locally. Deployment
+  requires the documented Docker preflight on a host with a running daemon.
+- The existing Tailwind 3 development toolchain reports 5 high-severity transitive
+  `braces` findings. `npm audit fix` has no compatible repair; its proposed fix
+  requires a Tailwind 4 migration. Production dependency audit reports 0 findings.
+- Two upstream test-client cookie/deprecation warnings remain. No human review,
+  production deployment, or team signoff is claimed.
 
-- Updated `asyncpg` and `psycopg2-binary` pins to releases supporting Python
-  3.13 on this host.
-- Added the repository root to pytest's import path and fixed the async fixture
-  loop-scope warning.
-- Fixed React type-only imports and removed an unused icon import.
-- Moved shared development fixtures out of a React component module so lint is
-  clean.
-- Classified Tailwind, PostCSS, and Autoprefixer as development dependencies;
-  the production npm audit is now clean.
-
-## Remaining blockers
-
-`scripts/preflight.ps1 -RequireLoadTools` correctly reports:
-
-- `backend/Dockerfile`
-- `backend/app/allocation/worker.py`
-- `frontend/Dockerfile`
-- `contracts/openapi.json`
-- local `k6` executable
-
-More importantly, the merged backend has no drop, entry, inventory, or
-allocation routes. The frontend still uses `DEV_FIXTURES`, and the P4 lab runner
-is not mounted under an admin HTTP router. Those are P1 integration dependencies,
-not merge conflicts.
-
-## Verdict
-
-P2, P3, and P4 coexist cleanly and their available isolated checks pass. The
-combined repository is not yet end-to-end complete or suitable for fairness/load
-claims until P1 lands and the blocked integration suites are executed.
+The P2 archive schema deliberately preserves historical fields and unbound
+sessions/grants for review. Migration refuses legacy values that violate the
+shared constraints instead of silently truncating identities. Restore/migrate
+in a disposable clone before applying to an existing deployment.

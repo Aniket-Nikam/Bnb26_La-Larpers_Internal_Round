@@ -1,44 +1,38 @@
-# Five-minute FairDrop demo runbook
+# FairDrop demo runbook
 
-Status: integration checklist only. Do not rehearse or claim completion until
-the preflight, real browser journey, authoritative DB audit, and measured report
-all pass from a fresh checkout.
+Start the isolated demo stack using README.md and run the Docker preflight.
+Container startup still needs verification on a host with a running daemon;
+local process/browser acceptance evidence is in INTEGRATION_REPORT.md.
 
-## Before the clock starts
+1. Provision organizer/participant codes offline. Sign in, copy the participant's
+   public account ID from their profile, create a draft and grant that invitation.
+2. Publish before the entry start. Show that a participant saves one receipt and
+   that refresh/two devices recover the same saved entry.
+3. Show an offered seat, confirm it, then refresh its receipt. Show an unconfirmed
+   offer expiring and the ordinary worker promoting the next persisted rank.
+4. Download the public lottery proof and run `python -m app.audit.verifier` to
+   reproduce commitments and ranking. Explain admitted-pool/personhood/operator
+   limitations.
+5. Run a small `policy_compare` experiment in the lab. Display each policy's
+   admitted identities, initial offers and integrity audit separately. Use multiple
+   independent trials for trial-level intervals; one trial has no interval.
+6. Export the measured report. Show achieved versus target HTTP RPS, dropped
+   iterations, latency, errors, provenance and null uninstrumented generator peaks.
 
-1. Start the isolated `fairdrop-demo` Compose project and verify both health
-   endpoints, two API replicas, worker, PostgreSQL, Redis, and runner.
-2. Provision the matched human/bot actor mapping privately. Create equal-capacity
-   FCFS_DEMO and LOTTERY drops with identical grants, limits, and prerecorded
-   schedules. Ensure the FCFS hold covers entry plus comparison capture.
-3. Run a small smoke comparison. Confirm `report.json` agrees with authoritative
-   database counts and contains no credential/session/CSRF secret.
-4. Keep larger saved reports visibly labelled with commit, hardware, delivered
-   workload, dropped iterations, and limitations.
+The dedicated runner creates matched synthetic credentials/grants and fresh
+policy drops for every trial. It uses real HTTP admission, the same limiter and
+the same authoritative seat model. It never directly inserts winners.
 
-## Live sequence
+For a CLI smoke run, put the offline-provisioned organizer code in a private JSON
+file `{ "access_code": "..." }` and run:
 
-1. **0:00–0:45 — FCFS pressure.** Show the early-bot schedule, start the bounded
-   FCFS run, and explain that FCFS remains inventory-safe but rewards arrival.
-2. **0:45–1:30 — Matched FairDrop.** Replay the same actors, credentials, request
-   schedule, capacity, and limiter settings against LOTTERY. Compare accepted-
-   identity initial-offer rates; do not compare request counts as lottery chances.
-3. **1:30–2:20 — Durable one-entry behavior.** Enter with one participant, repeat
-   with the same and a different operation key, refresh/reconnect, and recover the
-   same receipt. A discarded response is reconciled with `GET /drops/{id}/me`.
-4. **2:20–3:20 — Ownership transitions.** Confirm one active offer. Let another
-   expire, show promotion from the persisted ranking, and point out the fixed
-   capacity/duplicate-owner checks.
-5. **3:20–4:20 — Verification.** Reproduce commitments/rank through the public
-   proof verifier. State that reproducibility does not prove unique humanity or
-   eliminate all operator trust.
-6. **4:20–5:00 — Evidence and limits.** Show target versus delivered workload,
-   dropped iterations, expected 4xx, unexpected 5xx, latency, generator headroom,
-   identity versus actor share, and DB-audited integrity. State the tested scale
-   and any outage/admission losses exactly.
+```sh
+python3 scripts/http_smoke.py --credential-file private/organizer.json --output reports/local-smoke.json
+```
 
-## Abort conditions
-
-Stop optional load experiments if integrity, auth, migration, browser, or report-
-agreement gates are red. A small real run is preferable to an invented 50k claim.
-Stopped/failed runs retain partial artifacts and must remain labelled partial.
+Use the existing allowlisted `failure_injection.ps1` only against the isolated
+`fairdrop-demo` project. The Redis/worker-failure and shared-source-IP k6 scenarios
+require explicit host/controller confirmation and a private fixture; the unattended
+API rejects them. Never forge forwarding headers as a shared-IP simulation.
+Stopped and failed runs retain partial artifacts; an interrupted job is failed
+on runner restart. Show only measured outcomes and the tested scale.
