@@ -46,7 +46,7 @@ def entry_state(db, entry):
         status = "CANCELLED"
     elif reservation:
         status = reservation.status
-    elif rank:
+    elif rank or (drop.mode == "FCFS_DEMO" and drop.phase == "OPEN"):
         status = "WAITLISTED"
     return s.EntryState(
         entry_id=entry.id,

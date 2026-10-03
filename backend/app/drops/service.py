@@ -141,6 +141,10 @@ def enter(db, drop_id, principal):
     # FCFS uses exclusive lock for atomic admission sequence; LOTTERY holds FOR SHARE.
     mode = db.scalar(select(m.Drop.mode).where(m.Drop.id == drop_id))
     drop = lock_drop(db, drop_id, shared=mode != "FCFS_DEMO")
+    if mode != drop.mode:
+        raise DomainError(
+            "TEMPORARILY_UNAVAILABLE", "Drop publication changed; retry this operation.", 503, True
+        )
     now = db_now(db)
     existing = db.scalar(
         select(m.Entry).where(m.Entry.drop_id == drop_id, m.Entry.user_id == principal.id)
@@ -188,6 +192,10 @@ def enter(db, drop_id, principal):
     )
     if entry_id:
         record(db, drop.id, "ENTRY_ACCEPTED", "entry", entry.id, principal)
+    if entry_id and drop.mode == "FCFS_DEMO":
+        from app.allocation.fcfs import reconcile_locked
+
+        reconcile_locked(db, drop)
     # No counter write/lock upgrade in lottery path. Grant ceiling bounds entries.
     return entry, entry_id is not None
 

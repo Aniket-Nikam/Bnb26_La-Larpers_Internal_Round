@@ -92,3 +92,20 @@ proof fixture; OpenAPI export, schema fixtures, TypeScript generation+compile an
 passed. Tests mutate commitments/ranks/scores/inclusion, check private IDs/names absent,
 verify canonical same-input ranking across changed order, and check actual gzip delivery.
 Next: isolated FCFS_DEMO sharing all domain defenses. No production auth bypass added.
+
+## Isolated FCFS comparator feature — 2026-10-03 UTC
+
+Previous proof commit: c65bc3e. Implemented demo-only exclusive admission sequence,
+immediate offers/waitlist, OPEN-window expiry/promotion/new admission, original-order
+freeze/ranking, shared confirmation and ownership protections. FCFS proof explicitly
+has null seed/commitment/scores; verifier checks manifest/rank completeness while
+stating that admission order is not independently established by HMAC evidence.
+Default lottery keeps compatible entry locks and request-independent scores.
+
+Executed: pytest -q 23 passed on PostgreSQL, ruff passed. New checks cover rejection
+outside demo even with an enable flag, invalid normal profiles, admission-order offers,
+concurrent duplicates, expiry during OPEN, refusal to cancel after offers, empty-slot
+new admission, null lottery fields, ordered frozen proof and confirmed completion.
+Remote M2 branches and new origin/main appeared during this checkpoint. Next: inspect
+those read-only, resolve shared-model/interfaces against real owner code and verify
+integrated security journey if an adoptable P2 implementation now exists.

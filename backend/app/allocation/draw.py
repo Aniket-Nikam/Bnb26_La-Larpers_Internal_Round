@@ -40,7 +40,7 @@ def close_drop(db, drop, principal=None):
         manifest_commitment=manifest_commitment([e.public_entry_id for e in entries]),
         total_entries=len(entries),
         processed_entries=0,
-        next_rank=1,
+        next_rank=drop.admission_cursor if drop.mode == "FCFS_DEMO" else 1,
     )
     drop.phase = "CLOSED"
     db.add(run)
@@ -69,8 +69,13 @@ def trigger_draw(db, drop, principal=None):
 
 
 def calculate_ranking(mode, seed, drop_id, entries):
+    if mode == "FCFS_DEMO":
+        if any(e.admission_sequence is None or e.admission_sequence < 1 for e in entries):
+            raise DomainError("INTERNAL_ERROR", "FCFS admission sequence is incomplete.", 500)
+        ordered = sorted(entries, key=lambda e: e.admission_sequence)
+        return [(e.entry_id, e.public_entry_id, None) for e in ordered]
     if mode != "LOTTERY":
-        raise DomainError("NOT_IMPLEMENTED", "FCFS ranking is not yet implemented.", 501)
+        raise DomainError("INVALID_STATE", "Unsupported allocation mode.")
     return sorted(
         [(e.entry_id, e.public_entry_id, score(seed, drop_id, e.public_entry_id)) for e in entries],
         key=lambda row: (row[2], row[1]),
@@ -115,6 +120,26 @@ def compute_draw(drop_id, factory):
         if seed is not None and seed_commitment(seed) != drop.seed_commitment:
             raise DomainError("INTERNAL_ERROR", "Seed commitment validation failed.", 500)
         mode = drop.mode
+        if mode == "FCFS_DEMO":
+            from types import SimpleNamespace
+
+            rows = db.execute(
+                select(
+                    m.FrozenEntry.entry_id,
+                    m.FrozenEntry.public_entry_id,
+                    m.Entry.admission_sequence,
+                )
+                .join(m.Entry, m.Entry.id == m.FrozenEntry.entry_id)
+                .where(m.FrozenEntry.draw_id == draw_id)
+            ).all()
+            entries = [
+                SimpleNamespace(
+                    entry_id=r.entry_id,
+                    public_entry_id=r.public_entry_id,
+                    admission_sequence=r.admission_sequence,
+                )
+                for r in rows
+            ]
     ranking = calculate_ranking(mode, seed, drop_id, entries)
     with factory.begin() as db:
         drop = lock_drop(db, drop_id)

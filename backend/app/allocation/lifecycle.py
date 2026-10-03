@@ -1,6 +1,7 @@
 from sqlalchemy import select
 
 from app.allocation.draw import close_drop, compute_draw, record_recoverable_error
+from app.allocation.fcfs import reconcile as reconcile_fcfs
 from app.allocation.reservations import reconcile_offers
 from app.core.clock import db_now
 from app.drops.service import lock_drop, open_drop
@@ -28,6 +29,7 @@ def tick(factory):
                 .where(
                     ((m.Drop.phase == "SCHEDULED") & (m.Drop.starts_at <= now))
                     | ((m.Drop.phase == "OPEN") & (m.Drop.ends_at <= now))
+                    | ((m.Drop.phase == "OPEN") & (m.Drop.mode == "FCFS_DEMO"))
                     | m.Drop.phase.in_(["CLOSED", "DRAWING", "OFFERING"])
                 )
                 .order_by(m.Drop.id)
@@ -39,7 +41,10 @@ def tick(factory):
             phase = advance_lifecycle(drop_id, factory)
             if phase in {"CLOSED", "DRAWING"}:
                 compute_draw(drop_id, factory)
-            reconcile_offers(drop_id, factory)
+            if phase == "OPEN":
+                reconcile_fcfs(drop_id, factory)
+            else:
+                reconcile_offers(drop_id, factory)
         except Exception:
             failures.append(drop_id)
             try:
