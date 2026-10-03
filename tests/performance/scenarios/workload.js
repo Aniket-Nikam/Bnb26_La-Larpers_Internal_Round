@@ -14,12 +14,12 @@ const retryCount = intEnv('LAB_RETRIES_PER_ACTOR', 0);
 const configuredHumans = intEnv('LAB_HUMAN_ACTORS', 0);
 const configuredBots = intEnv('LAB_BOT_ACTORS', 0);
 
-const fixture = new SharedArray('private actor-to-credential mapping', () => {
+const fixture = new SharedArray('private fixture metadata', () => {
   const parsed = JSON.parse(open(required('LAB_CREDENTIALS_FILE')));
   if (!parsed.drop_id || !Array.isArray(parsed.actors)) {
     throw new Error('credential fixture must contain drop_id and actors');
   }
-  return [parsed];
+  return [{ drop_id: parsed.drop_id, policy_drop_ids: parsed.policy_drop_ids }];
 })[0];
 
 const successfulLatency = new Trend('fairdrop_successful_request_latency', true);
@@ -30,10 +30,15 @@ const expected409 = new Counter('fairdrop_expected_409');
 const unexpected5xx = new Counter('fairdrop_unexpected_5xx');
 const acceptedEntry = new Rate('fairdrop_entry_accepted');
 
-const people = flattenActors(fixture.actors);
-const humans = people.filter((person) => person.cohort === 'human').slice(0, configuredHumans);
-const bots = people.filter((person) => person.cohort === 'bot').slice(0, configuredBots);
-const allPeople = humans.concat(bots);
+const people = new SharedArray('private identities', () => flattenActors(JSON.parse(open(required('LAB_CREDENTIALS_FILE'))).actors));
+const humans = new SharedArray('human identity indexes', () => cohortIndexes('human', configuredHumans));
+const bots = new SharedArray('bot identity indexes', () => cohortIndexes('bot', configuredBots));
+const allPeople = new SharedArray('configured identity indexes', () => {
+  const indexes = [];
+  for (let i = 0; i < humans.length; i += 1) indexes.push(humans[i]);
+  for (let i = 0; i < bots.length; i += 1) indexes.push(bots[i]);
+  return indexes;
+});
 
 if (allPeople.length !== configuredHumans + configuredBots) {
   throw new Error('private credential fixture does not satisfy configured cohort counts');
@@ -195,9 +200,17 @@ function flattenActors(actors) {
   return flattened;
 }
 
+function cohortIndexes(cohort, count) {
+  const indexes = [];
+  for (let i = 0; i < people.length && indexes.length < count; i += 1) {
+    if (people[i].cohort === cohort) indexes.push(i);
+  }
+  return indexes;
+}
+
 function select(items) {
   if (!items.length) throw new Error('scenario cohort has no configured credentials');
-  return items[exec.scenario.iterationInTest % items.length];
+  return people[items[exec.scenario.iterationInTest % items.length]];
 }
 
 function tags(person, endpoint) {

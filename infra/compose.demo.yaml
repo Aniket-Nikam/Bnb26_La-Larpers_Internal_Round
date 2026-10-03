@@ -14,18 +14,14 @@ services:
       LAB_MAX_RETRIES_PER_ACTOR: ${LAB_MAX_RETRIES_PER_ACTOR:-20}
       LAB_ARTIFACT_ROOT: ${LAB_ARTIFACT_ROOT:-/var/lib/fairdrop/lab}
       LAB_PRIVATE_FIXTURE_ROOT: ${LAB_PRIVATE_FIXTURE_ROOT:-/run/secrets/fairdrop-lab}
-    volumes:
-      - lab-artifacts:/var/lib/fairdrop/lab
-      - lab-private:/run/secrets/fairdrop-lab
 
   api-b:
     environment: *demo-api-environment
-    volumes:
-      - lab-artifacts:/var/lib/fairdrop/lab
-      - lab-private:/run/secrets/fairdrop-lab
 
   runner:
     profiles: ["lab"]
+    mem_limit: 1g
+    cpus: 2.0
     build:
       context: .
       dockerfile: backend/Dockerfile
