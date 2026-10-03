@@ -134,3 +134,14 @@ M2 implementations remain unmerged. Real authenticated cookie/CSRF/Redis integra
 frontend browser journey, lab and measured multi-replica/load evidence remain pending
 with their owners. P1-owned domain handlers have no NOT_IMPLEMENTED stubs; only
 security/lab stubs remain, fail closed, and readiness discloses unavailable writes.
+
+
+## Final handoff
+
+Updated UTC: 2026-10-03T17:53:42.031585Z. Last tested code commit: `f644645ac0ae8390727871cd657a09c9b6e5dcbb`.
+Contract v1.0; Alembic c2f4a1230001; 27 PostgreSQL checks passed. Exact commands,
+changed paths, feature map, named ownership handoffs and limits: contracts/HANDOFF.md.
+All seven implementation feature commits are on M1. Documentation checkpoint follows;
+push only origin/M1, never main, and keep both M2 branches unmerged per user instruction.
+M1 branch is not integrated into main. Next owner action: consume this checkpoint,
+coordinate security adapters/models, regenerate frontend types and run the real journey.

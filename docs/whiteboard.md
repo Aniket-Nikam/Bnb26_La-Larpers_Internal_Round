@@ -220,3 +220,25 @@ This simple serialized per-drop seat coordinator is a deliberate scope tradeoff:
 | WB-10 | All four | Scope: simulated checkout | No money collected | No payment/transfer/check-in security | Pending |
 
 AI may suggest answers, update accurate implemented behavior and attach actual evidence. Only a human supplies their own explanation/review record. Ask each owner to explain: why this alternative, what malicious actor can do, which durable structure matters, what happens at the deadline/outage, what was actually tested, and where the guarantee stops. A confident answer without matching implementation is not a successful defense.
+
+
+## M1 implementation evidence — 2026-10-03T17:53:42.031585Z
+
+Implemented on branch M1; last tested core commit `f644645ac0ae8390727871cd657a09c9b6e5dcbb`. Not merged to main.
+User directed M1-only push and no M2 integration. All human explanations/reviews remain
+PENDING. Specification/rehearsal text above is not a claim of integrated release.
+
+| Decision | Implementation | Executed evidence | Remaining limit / human review |
+| --- | --- | --- | --- |
+| WB-01 | 803e068 durable identity/drop entry; 20775f3 frozen HMAC ranking | Same/different-key concurrency, one acceptance audit, same-input/request-order ranking | Admission controls are separate; P2 real identity/limiter integration pending; review PENDING |
+| WB-02 | Reservation authority, composite FKs/partial indexes, atomic slots; f9d4abc ownership transitions | Capacity/active-owner checks, direct cross-drop/user FK rejection, concurrent confirmations | 500-seat configuration ceiling is not a measured load claim; review PENDING |
+| WB-05 | AES-GCM protected committed seed; sealed snapshot/ranks; c65bc3e public proof/stdlib verifier | Canonical byte reproduction, immutable proof rows, tampering/privacy/participant inclusion tests | Server operator seed-search/selective cancellation remains possible; review PENDING |
+| WB-06 | PostgreSQL operation claim + fingerprint + domain reference; own /me and receipt recovery | Concurrent/replayed entries and confirmed reservations resolve same objects, late accepted retry works | P3 browser refresh/lost-connection journey and P2 sessions still pending; review PENDING |
+| WB-08 | Fresh clock after Drop -> Slot -> Reservation locks; fixed rank cursor and worker | Both confirmation/expiry outcomes, exact promotion, SIGKILL during draw/offer/promotion and real worker restart | Process recovery does not prove host/storage recovery; review PENDING |
+| WB-09 | 3536139 demo-only admission-order comparator with shared inventory/admission/confirmation rules | FCFS order, retries, expiry/promotion, null lottery evidence and normal-profile isolation | No measured matched-cohort/load chart yet; P4 owns that evidence; review PENDING |
+
+Final core suite: 27 passed using real PostgreSQL 18.6 / Python 3.12.14, with an
+explicit test-only security adapter. Fresh migrations/consistency and downgrade-upgrade,
+OpenAPI/schema fixtures, TypeScript compilation, API socket smoke and worker entrypoint
+passed. Exact commands and known initial failures are in progress/person-1.md and
+contracts/HANDOFF.md. No raw credentials or unrevealed seed were recorded here.
