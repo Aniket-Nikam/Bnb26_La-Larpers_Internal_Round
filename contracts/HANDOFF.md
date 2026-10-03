@@ -104,7 +104,7 @@ progress/person-1.md and this handoff. No integrated-app gate or human review cl
 | backend/app/audit/ | Safe transition facts, pending/published compressed proof, independent bounded standard-library verifier |
 | backend/app/main.py | Fixed routers, request/body handling, explicit dependency readiness/capabilities and safe error mapping |
 | backend/tests/core/ | 27 actual PostgreSQL/HTTP/core-integrity checks and process-crash/CLI tests |
-| contracts/ | OpenAPI 31 paths, v1.0, validated state/error/proof/lab fixtures, locked generation tooling and compiled generated TypeScript |
+| contracts/ | OpenAPI 33 paths, v1.0, validated state/error/proof/lab fixtures, locked generation tooling and compiled generated TypeScript |
 | backend/app/security/, backend/app/lab/ | Bootstrap skeletons only; implementation handed to P2/P4, fail explicitly with NOT_IMPLEMENTED |
 
 ### Executed verification

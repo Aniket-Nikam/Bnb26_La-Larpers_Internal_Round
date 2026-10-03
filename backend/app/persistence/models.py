@@ -40,9 +40,14 @@ class User(Identity, Base):
     __tablename__ = "users"
     public_id: Mapped[str] = mapped_column(String(64), unique=True, default=public_id)
     display_name: Mapped[str] = mapped_column(String(100))
+    email: Mapped[str | None] = mapped_column(String(254))
+    password_hash: Mapped[str | None] = mapped_column(String(256))
     timezone: Mapped[str] = mapped_column(String(100), default="UTC")
     role: Mapped[str] = mapped_column(String(16), default="participant")
-    __table_args__ = (CheckConstraint("role IN ('participant','organizer','admin')"),)
+    __table_args__ = (
+        CheckConstraint("role IN ('participant','organizer','admin')"),
+        Index("uq_users_email_lower", func.lower(email), unique=True),
+    )
 
 
 class AccessCredential(Identity, Base):

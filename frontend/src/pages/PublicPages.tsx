@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck, Ticket, Lock } from "lucide-react";
+import { ShieldCheck, Ticket, Lock, UserPlus } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { TicketCard, TicketDivider } from "../components/Ticket";
 import { ErrorMessage } from "../components/State";
-import { api, time, useAction, useLogin, useSession } from "../lib/api/client";
+import {
+  api,
+  time,
+  useAction,
+  useLogin,
+  usePasswordLogin,
+  useRegister,
+  useSession,
+} from "../lib/api/client";
 import type { Drop, Entry, Page, Schema } from "../lib/api/client";
 
 export function LandingPage() {
@@ -34,8 +42,8 @@ export function LandingPage() {
           <span className="text-white/40">Verify securely.</span>
         </h1>
         <p className="text-lg text-white/60 max-w-xl">
-          Use your invitation credential, save one entry, and verify the
-          published draw.
+          Create an account or use an invitation credential, save one entry, and
+          verify the published draw.
         </p>
       </div>
       <label className="block">
@@ -231,43 +239,176 @@ export function DropDetail() {
 }
 
 export function SignInPage() {
+  const [invitationMode, setInvitationMode] = useState(false);
   const [code, setCode] = useState("");
   const login = useLogin();
+  const passwordLogin = usePasswordLogin();
   const navigate = useNavigate();
   return (
     <div className="max-w-md mx-auto pt-16">
       <TicketCard className="p-10 space-y-8">
         <Lock />
         <h1 className="text-3xl font-bold">Sign in</h1>
+        <div className="flex gap-3">
+          <button
+            className={!invitationMode ? "button" : "underline"}
+            type="button"
+            onClick={() => setInvitationMode(false)}
+          >
+            Email
+          </button>
+          <button
+            className={invitationMode ? "button" : "underline"}
+            type="button"
+            onClick={() => setInvitationMode(true)}
+          >
+            Invitation credential
+          </button>
+        </div>
         <form
           className="space-y-6"
           onSubmit={(e) => {
             e.preventDefault();
-            login.mutate(code, {
+            const fields = new FormData(e.currentTarget);
+            const options = {
               onSuccess: () => {
                 setCode("");
                 navigate("/drops");
               },
-            });
+            };
+            if (invitationMode) login.mutate(code, options);
+            else
+              passwordLogin.mutate(
+                {
+                  email: String(fields.get("email")),
+                  password: String(fields.get("password")),
+                },
+                options,
+              );
+          }}
+        >
+          {invitationMode ? (
+            <label className="block">
+              Invitation credential
+              <input
+                className="field mt-3"
+                type="password"
+                autoComplete="off"
+                required
+                maxLength={256}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+            </label>
+          ) : (
+            <>
+              <label className="block">
+                Email
+                <input
+                  className="field mt-3"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  maxLength={254}
+                />
+              </label>
+              <label className="block">
+                Password
+                <input
+                  className="field mt-3"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  minLength={8}
+                  maxLength={128}
+                />
+              </label>
+            </>
+          )}
+          <button
+            className="button"
+            disabled={login.isPending || passwordLogin.isPending}
+          >
+            Sign in
+          </button>
+          <ErrorMessage error={login.error ?? passwordLogin.error} />
+        </form>
+        <p>
+          New visitor?{" "}
+          <Link className="underline" to="/register">
+            Create an account
+          </Link>
+        </p>
+      </TicketCard>
+    </div>
+  );
+}
+
+export function RegisterPage() {
+  const register = useRegister();
+  const navigate = useNavigate();
+  return (
+    <div className="max-w-md mx-auto pt-16">
+      <TicketCard className="p-10 space-y-8">
+        <UserPlus />
+        <h1 className="text-3xl font-bold">Create visitor account</h1>
+        <form
+          className="space-y-6"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const fields = new FormData(event.currentTarget);
+            register.mutate(
+              {
+                display_name: String(fields.get("display_name")),
+                email: String(fields.get("email")),
+                password: String(fields.get("password")),
+              },
+              { onSuccess: () => navigate("/profile") },
+            );
           }}
         >
           <label className="block">
-            Invitation credential
+            Display name
             <input
               className="field mt-3"
-              type="password"
-              autoComplete="off"
+              name="display_name"
               required
-              maxLength={256}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
+              maxLength={100}
             />
           </label>
-          <button className="button" disabled={login.isPending}>
-            Verify &amp; sign in
+          <label className="block">
+            Email
+            <input
+              className="field mt-3"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={254}
+            />
+          </label>
+          <label className="block">
+            Password
+            <input
+              className="field mt-3"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              maxLength={128}
+            />
+          </label>
+          <button className="button" disabled={register.isPending}>
+            Create account
           </button>
-          <ErrorMessage error={login.error} />
+          <ErrorMessage error={register.error} />
         </form>
+        <Link className="underline" to="/sign-in">
+          Already have an account? Sign in
+        </Link>
       </TicketCard>
     </div>
   );

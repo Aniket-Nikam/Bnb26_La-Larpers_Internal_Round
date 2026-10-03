@@ -84,7 +84,7 @@ def ready():
     try:
         with get_engine().connect() as conn:
             version = conn.scalar(text("SELECT version_num FROM alembic_version LIMIT 1"))
-            db_ok = version == "d3f100000001"
+            db_ok = version == "e4f200000001"
     except Exception:
         pass
     try:
@@ -124,7 +124,12 @@ def contract_openapi():
             if method not in {"post", "patch", "delete"}:
                 continue
             headers = []
-            if path != "/api/v1/auth/session":
+            public_auth_paths = {
+                "/api/v1/auth/session",
+                "/api/v1/auth/password-session",
+                "/api/v1/auth/register",
+            }
+            if path not in public_auth_paths:
                 headers = [
                     {
                         "name": "X-CSRF-Token",

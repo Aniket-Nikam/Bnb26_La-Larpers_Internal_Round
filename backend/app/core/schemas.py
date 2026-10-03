@@ -1,5 +1,6 @@
 """Normative v1.0 wire schemas shared by P1/P2/P3/P4."""
 
+import re
 from datetime import UTC
 from enum import StrEnum
 from typing import Annotated, Generic, Literal, TypeVar
@@ -83,6 +84,32 @@ class Principal(DTO):
 
 class SessionInput(DTO):
     access_code: str = Field(min_length=1, max_length=256)
+
+
+def _normalize_email(value: str) -> str:
+    value = value.strip().lower()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+        raise ValueError("Use a valid email address")
+    return value
+
+
+class PasswordSessionInput(DTO):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+
+    _email = field_validator("email")(_normalize_email)
+
+
+class RegistrationInput(PasswordSessionInput):
+    display_name: str = Field(min_length=1, max_length=100)
+
+    @field_validator("display_name")
+    @classmethod
+    def nonblank_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Display name cannot be blank")
+        return value
 
 
 class SessionResponse(DTO):

@@ -71,7 +71,7 @@ Data structure: seat-slot relation, active reservation uniqueness, audit history
 Evidence: concurrent offer/confirm tests and queries across transitions, not only final totals.
 
 ## WB-03 — What identifies a participant?
-Answer: A provisioned access credential authenticates a stable account, and a per-drop eligibility grant permits entry. Different tabs/devices for that account still map to one unique entry. Durable sessions are opaque cookies with server-side state.
+Answer: A visitor may create a participant account with email/password, while provisioned invitation credentials remain available for organizers and invited users. A separate per-drop eligibility grant permits entry. Different tabs/devices for that account still map to one unique entry. Durable sessions are opaque cookies with server-side state.
 
 Alternative: Browser sessions alone allow multiple entries by clearing cookies. IP uniqueness excludes shared Wi-Fi. Email/phone control raises friction but does not prove a unique person.
 
@@ -197,7 +197,7 @@ Its distinct-network humans do not test shared-campus fairness; clustered bots d
 | Structure | Why we chose it | Cost and failure boundary |
 | --- | --- | --- |
 | Unique indexed entries | One durable accepted account/drop record | DB write load; eligibility quality remains external |
-| Publication-locked grants | Known allowed accounts before entry opens | No self-service public signup or late grants in v1 |
+| Publication-locked grants | Known allowed accounts before entry opens | Self-service signup never self-grants eligibility; no late grants in v1 |
 | FrozenEntry relation | Immutable membership tied to one draw | O(N) storage; cannot prove excluded attempts were admitted |
 | HMAC scores + persisted DrawRank | Reproduce a pseudorandom total order and waitlist | O(N log N) sort, O(N) storage; server-operator trust remains |
 | SeatSlot + partial-unique Reservation | One current account/slot owner; retain expired history | Coordinated DB transactions; mutation paths must preserve same-drop FKs |

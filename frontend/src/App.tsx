@@ -11,6 +11,7 @@ import {
   LandingPage,
   DropDetail,
   SignInPage,
+  RegisterPage,
   ReceiptsPage,
   ReceiptPage,
   ProofPage,
@@ -128,6 +129,7 @@ export function App() {
           <Route path="/drops" element={<LandingPage />} />
           <Route path="/drops/:id" element={<DropDetail />} />
           <Route path="/sign-in" element={<SignInPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/entries" element={<ReceiptsPage />} />
           <Route path="/entries/:id" element={<ReceiptPage />} />
           <Route path="/profile" element={<ProfilePage />} />

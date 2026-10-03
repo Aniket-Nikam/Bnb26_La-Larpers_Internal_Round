@@ -2,7 +2,7 @@
 
 M1, M2, M3 and M4 are integrated on `main`: a FastAPI/PostgreSQL allocation
 backend, durable invitation sessions and shared Redis limits, a React frontend,
-and an isolated measured attack lab. All 31 v1 route paths use one shared schema.
+and an isolated measured attack lab. All 33 v1 route paths use one shared schema.
 The frontend uses real API responses; development fixtures were removed.
 
 ## Demo deployment
@@ -21,14 +21,17 @@ and volumes. Keep its database separate from normal deployments. The stack has
 PostgreSQL 18, Redis, two API replicas, an allocation worker, a dedicated k6 job
 worker, migrations, and a same-origin gateway serving the built frontend.
 
-Provision an organizer and participants offline, then use their codes on the
+Provision an organizer offline, then use its code on the invitation tab of the
 sign-in page. Provisioning prints each raw code once; retain it privately:
 
 ```sh
 docker compose -p fairdrop-demo --env-file .env -f compose.yaml -f infra/compose.demo.yaml exec api-a python -m app.security.provision --name Organizer --role organizer
 ```
 
-Each participant's profile shows the public account ID needed for invitations.
+Visitors can register with email/password or sign in with an invitation
+credential. Registration creates a participant account and signs it in, but does
+not grant access to any drop. Each participant's profile shows the public account
+ID an organizer uses to grant invitations.
 Create a draft, grant invitations, and publish it before its scheduled entry
 start. The allocation worker opens/closes the window, freezes membership,
 publishes the ranking, offers seats, and promotes expired offers. A saved receipt
@@ -65,9 +68,9 @@ make up
 
 Provide TLS termination for the configured public origin. Normal profile requires
 HTTPS, Secure cookies and stable random digest/encryption keys. It disables the
-lab and FCFS comparison. Offline real-account provisioning requires the explicit
-`--production` CLI option. Redis failure preserves authenticated reads and durable
-sessions while protected writes return retryable 503 responses.
+lab and FCFS comparison. Offline organizer/admin provisioning requires the
+explicit `--production` CLI option. Redis failure preserves authenticated reads
+and durable sessions while protected writes return retryable 503 responses.
 
 ## Local development and verification
 

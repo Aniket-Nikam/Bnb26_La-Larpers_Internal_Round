@@ -35,7 +35,11 @@ export async function api<T>(
   if (method !== "GET") {
     headers["Content-Type"] = "application/json";
     if (csrf) headers["X-CSRF-Token"] = csrf;
-    if (!(path === "/auth/session"))
+    if (
+      !["/auth/session", "/auth/password-session", "/auth/register"].includes(
+        path,
+      )
+    )
       headers["Idempotency-Key"] = operationKey ?? crypto.randomUUID();
   }
   const options = {
@@ -120,6 +124,26 @@ export function useLogin() {
       cache.setQueryData(["session"], session);
     },
   });
+}
+
+function useAccountSession(path: "/auth/password-session" | "/auth/register") {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: (body: unknown) => api<Session>(path, "POST", body),
+    onSuccess: (session) => {
+      csrf = session.csrf_token;
+      cache.clear();
+      cache.setQueryData(["session"], session);
+    },
+  });
+}
+
+export function usePasswordLogin() {
+  return useAccountSession("/auth/password-session");
+}
+
+export function useRegister() {
+  return useAccountSession("/auth/register");
 }
 
 export function useLogout() {

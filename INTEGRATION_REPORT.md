@@ -8,17 +8,20 @@ measured lab jobs. No secondary M2 branch was merged.
 
 ## Resulting application
 
-- One sync SQLAlchemy/psycopg persistence system and Alembic head `d3f100000001`.
+- One sync SQLAlchemy/psycopg persistence system and Alembic head `e4f200000001`.
   P2 authentication now uses P1's transactions, UUID models and shared v1 DTOs.
   `uv.lock` is authoritative; `requirements.txt` is its generated production export.
-- Real invitation login, durable opaque `fd_session` cookies, strict Origin and
+- Real visitor email/password registration and login, invitation login, durable
+  opaque `fd_session` cookies, strict Origin and
   CSRF checks, privilege allowlists, owner checks, credential revocation, and
-  atomic Redis account/session/credential/network/global limits. Login does not
-  mint identities or invitations. Logout clears the actual returned cookie.
+  atomic Redis account/session/credential/network/global limits. Self-registration
+  creates participant identities only and never grants drop eligibility. Logout
+  clears the actual returned cookie.
 - Complete drop, eligibility, idempotency, receipt, draw, reservation, expiry,
   promotion, inventory and public proof routes. Frozen membership and ranking
   remain immutable. The independent verifier reproduces the lottery ordering.
-- Real typed frontend: discovery, sign-in/out, invitation check, saved entry,
+- Real typed frontend: discovery, visitor registration, email/invitation sign-in,
+  sign-out, invitation check, saved entry,
   offer countdown, confirmation, receipts, proof download, organizer create/edit,
   grants/revocation, publication/cancellation, metrics/audit/CSV, profile and lab.
   Mock fixtures and fabricated lab counters were removed.
@@ -38,13 +41,13 @@ measured lab jobs. No secondary M2 branch was merged.
 
 | Check | Result |
 | --- | --- |
-| Backend pytest against PostgreSQL 18.6 UTF-8 and Redis 8.2.1 | **93 passed**, plus 4 unittest subtests |
+| Backend pytest against PostgreSQL 18.6 UTF-8 and Redis 8.2.1 | **97 passed**, plus 4 unittest subtests |
 | Backend Ruff lint and formatting | Passed |
 | Fresh migration / metadata comparison | Passed; one head, no drift |
 | M2 legacy migration with an existing inactive user, credential and session | Identity/digest/label preserved; session archived and requires re-login |
 | Legacy downgrade to P2 revision and re-upgrade | Passed |
 | Already-stamped M1 database clone downgrade/re-upgrade | Passed |
-| Shared contract export and both generated TS outputs | Passed; 31 paths |
+| Shared contract export and both generated TS outputs | Passed; 33 paths |
 | Frontend TypeScript production build and lint | Passed |
 | Production dependency audit | 0 vulnerabilities |
 | Browser organizer flow | Login, draft creation, real grant, publication, live inventory and lab report passed |
@@ -59,7 +62,7 @@ measured lab jobs. No secondary M2 branch was merged.
 | SIGKILL of isolated lab worker and replacement worker startup | FAILED / LAB_RUN_INTERRUPTED; partial artifacts retained |
 | Normal and demo Compose configuration | Validated with Docker Compose 2.39.4 |
 | Dockerfile base image references | Registry manifests verified for Python 3.12.14, uv 0.12.22 and k6 1.3.0 |
-| Production-only locked environment | Fresh frozen install imports all 31 API paths |
+| Production-only locked environment | Fresh frozen install imports all API paths |
 | Private environment initializer | Refuses incomplete normal origin; mode 0600; preserves existing file |
 
 Core tests keep their clearly labelled test-only security adapter for deterministic
