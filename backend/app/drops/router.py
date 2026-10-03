@@ -185,7 +185,13 @@ def confirm(
     principal: PARTICIPANT,
     key: KEY,
 ):
-    raise DomainError("NOT_IMPLEMENTED", "Confirmation is not yet implemented.", 501)
+    from app.allocation.reservations import confirm as confirm_reservation
+
+    def execute():
+        entry = confirm_reservation(db, reservation_id, principal)
+        return "entry", entry.id, None
+
+    return mutation(db, request, principal, key, body.model_dump(), execute)[0]
 
 
 @router.get("/admin/drops", response_model=s.Page[s.DropSummary])

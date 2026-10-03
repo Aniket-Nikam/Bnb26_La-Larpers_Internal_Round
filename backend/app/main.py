@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request
@@ -17,8 +18,19 @@ from app.persistence.database import get_engine
 from app.security import authorization
 from app.security.router import router as security_router
 
+
+@asynccontextmanager
+async def lifespan(app):
+    get_settings()
+    yield
+
+
 app = FastAPI(
-    title="FairDrop", version="1.0.0", docs_url="/api/docs", openapi_url="/api/openapi.json"
+    lifespan=lifespan,
+    title="FairDrop",
+    version="1.0.0",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
 )
 install_errors(app)
 ERRORS = {
@@ -69,8 +81,8 @@ def ready():
     db_ok = redis_ok = False
     try:
         with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1 FROM alembic_version LIMIT 1"))
-            db_ok = True
+            version = conn.scalar(text("SELECT version_num FROM alembic_version LIMIT 1"))
+            db_ok = version == "c2f4a1230001"
     except Exception:
         pass
     try:

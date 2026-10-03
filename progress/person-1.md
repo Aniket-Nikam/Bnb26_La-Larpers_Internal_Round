@@ -55,3 +55,23 @@ canonical seed/manifest/HMAC order, later grant revocation retained, immutable p
 rows, interrupted publication rollback/retry with original seed/run, empty manifest.
 ruff passed. No human review claimed. Offers/proof HTTP still pending at this checkpoint.
 Next: reservation/confirmation/expiry/promotion and durable worker reconciliation.
+
+## Offers/confirmation/expiry/worker feature — 2026-10-03 UTC
+
+Previous ranking commit: 20775f3. Implemented authoritative OFFERED reservations,
+owning-identity confirmation and replay, fresh DB wall clock after ordered locks,
+expiry and exact next-rank promotion, one-lifetime-offer-per-entry, atomic cursor/
+audit/ownership writes, empty/exhausted/undersubscribed completion and <=100-change
+reconciliation batches. Worker discovers lifecycle/ranking/offers from PostgreSQL,
+handles interruptions, accepts SIGTERM/SIGINT and supports --once verification.
+No Redis TTL dependency; normal worker needs a stable valid AES-GCM key.
+
+Checks executed: pytest -q 18 passed on real PostgreSQL. Tests include concurrent
+confirm/replay, cross-owner denial, capacity/current owner uniqueness, cross-drop
+foreign-key rejection, late confirmation after lock wait, timely confirmation whose
+commit passes expiry while worker waits, exact original-rank promotion, unused-seat
+completion, bounded missing-offer recovery, real SIGKILL of subprocesses during draw/
+offer/promotion and actual python -m app.allocation.worker --once restart recovery.
+ruff passed. API clock tests use only test fixtures to move deadlines; production
+policy fields remain locked. Full real login/browser/limiter path still awaits P2/P3.
+Next: public-safe proof, independent standalone verifier, then isolated FCFS comparator.
