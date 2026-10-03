@@ -75,3 +75,20 @@ offer/promotion and actual python -m app.allocation.worker --once restart recove
 ruff passed. API clock tests use only test fixtures to move deadlines; production
 policy fields remain locked. Full real login/browser/limiter path still awaits P2/P3.
 Next: public-safe proof, independent standalone verifier, then isolated FCFS comparator.
+
+## Public proof / independent verifier feature — 2026-10-03 UTC
+
+Previous allocation commit: f9d4abc. Implemented pending/published proof with no seed
+before complete ranking, pseudonymous manifest/ranks/scores only, compressed delivery,
+independent bounded stdlib verifier/CLI and participant inclusion check. Optimized CSV
+export to one joined query rather than per-entry projections. Added valid proof fixtures.
+Verifier checks seed/manifest commitments, scores, unique complete ranks, exact ordering
+and supplied participant ID. Claims reproducible/auditable only; operator seed search /
+selective cancellation remain possible. Without participant ID, inclusion is not claimed.
+
+Executed full core suite: 20 passed on PostgreSQL. Additional focused proof/foundation
+rerun after examples/compression assertion: 5 passed. CLI successfully verified committed
+proof fixture; OpenAPI export, schema fixtures, TypeScript generation+compile and ruff
+passed. Tests mutate commitments/ranks/scores/inclusion, check private IDs/names absent,
+verify canonical same-input ranking across changed order, and check actual gzip delivery.
+Next: isolated FCFS_DEMO sharing all domain defenses. No production auth bypass added.

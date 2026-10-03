@@ -6,6 +6,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from redis import Redis
 from sqlalchemy import text
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.audit.router import router as audit_router
 from app.core import schemas as s
@@ -32,6 +33,7 @@ app = FastAPI(
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 install_errors(app)
 ERRORS = {
     code: {"model": s.ErrorResponse} for code in (401, 403, 404, 409, 422, 429, 500, 501, 503)

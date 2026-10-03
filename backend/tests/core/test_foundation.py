@@ -60,6 +60,8 @@ def test_exported_examples_validate():
             s.ErrorResponse.model_validate(data)
         elif path.name.startswith("lab-"):
             s.RunDetail.model_validate(data)
+        elif path.name.startswith("proof-"):
+            TypeAdapter(s.ProofResponse).validate_python(data)
         elif path.name == "scheduled.json":
             s.DropDetail.model_validate(data)
         else:

@@ -413,9 +413,27 @@ def export(drop_id: UUID, db: DB, principal: ORGANIZER):
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(["public_entry_id", "status", "rank"])
-    for entry in db.scalars(select(m.Entry).where(m.Entry.drop_id == drop_id).order_by(m.Entry.id)):
-        state = view.entry_state(db, entry)
-        writer.writerow([state.public_entry_id, state.status, state.rank])
+    run = db.scalar(select(m.DrawRun).where(m.DrawRun.drop_id == drop_id))
+    drop = db.get(m.Drop, drop_id)
+    statement = (
+        select(m.Entry.public_entry_id, m.Reservation.status, m.DrawRank.rank)
+        .outerjoin(m.Reservation, m.Reservation.entry_id == m.Entry.id)
+        .outerjoin(
+            m.DrawRank,
+            (m.DrawRank.entry_id == m.Entry.id)
+            & (
+                m.DrawRank.draw_id == (run.id if run and run.status == "PUBLISHED" else UUID(int=0))
+            ),
+        )
+    )
+    rows = db.execute(statement.where(m.Entry.drop_id == drop_id).order_by(m.Entry.id))
+    for public_id, reservation_status, rank in rows:
+        status = (
+            "CANCELLED"
+            if drop.phase == "CANCELLED"
+            else (reservation_status or ("WAITLISTED" if rank else "ENTERED"))
+        )
+        writer.writerow([public_id, status, rank])
     return Response(
         out.getvalue(),
         media_type="text/csv",

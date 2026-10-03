@@ -63,6 +63,40 @@ def main():
             server_time=NOW,
         )
         save(status.lower(), entry)
+    save(
+        "proof-pending",
+        s.PendingProof(
+            phase="OPEN", seed_commitment="0" * 64, manifest_commitment=None, server_time=NOW
+        ),
+    )
+    import hashlib
+    import hmac
+
+    seed = bytes(range(32))
+    public_entry = "fd_example"
+    save(
+        "proof-published",
+        s.PublishedProof(
+            drop_id=DROP,
+            draw_id=ID,
+            algorithm_version="hmac-sha256-v1",
+            rules_version="v1.0",
+            mode="LOTTERY",
+            seed=seed.hex(),
+            seed_commitment=hashlib.sha256(seed).hexdigest(),
+            manifest_commitment=hashlib.sha256(b"fd_example\n").hexdigest(),
+            entries=[
+                s.ProofEntry(
+                    public_entry_id=public_entry,
+                    score_hex=hmac.new(
+                        seed, f"fair-drop:v1:{DROP}:{public_entry}".encode(), hashlib.sha256
+                    ).hexdigest(),
+                    rank=1,
+                )
+            ],
+            server_time=NOW,
+        ),
+    )
     for code in (
         "SESSION_REQUIRED",
         "FORBIDDEN",
