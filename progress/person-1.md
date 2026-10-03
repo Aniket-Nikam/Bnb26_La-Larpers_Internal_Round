@@ -38,3 +38,20 @@ eligibility-removal check exposed an ambiguous ORM join; fixed the explicit user
 Security in these tests is an EXPLICIT TEST-ONLY adapter, not real P2 login/CSRF/limits.
 Real login/browser integration remains BLOCKED on P2/P3; deny-by-default remains live.
 Next: exclusive close/freeze, immutable ranking publication and draw recovery.
+
+## Close/freeze/ranking feature — 2026-10-03 UTC
+
+Previous domain commit: 803e068. Implemented exclusive closure, fresh statement
+snapshot after waiting for admissions, all-accepted manifest (later revocation does
+not subtract entries), one run/seed, unlocked canonical HMAC computation, atomic
+complete rank publication and safe recoverable checkpoint. Migration c2f4a1230001
+seals FrozenEntry membership, prohibits published rank mutations/draw reset and
+cursor rewind; app models have snapshot_sealed. Shared migration goes only through P1.
+
+Checks: upgrade head and alembic check passed; pytest -q 11 passed on real PostgreSQL.
+Evidence includes actual pg_stat_activity lock wait during entry-vs-close, late entry
+waiting past deadline, eight concurrent triggers/computations using one draw, exact
+canonical seed/manifest/HMAC order, later grant revocation retained, immutable proof
+rows, interrupted publication rollback/retry with original seed/run, empty manifest.
+ruff passed. No human review claimed. Offers/proof HTTP still pending at this checkpoint.
+Next: reservation/confirmation/expiry/promotion and durable worker reconciliation.

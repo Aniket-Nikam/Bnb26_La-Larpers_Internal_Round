@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -188,6 +189,7 @@ class DrawRun(Identity, Base):
     __tablename__ = "draw_runs"
     drop_id: Mapped[UUID] = mapped_column(ForeignKey("drops.id"), unique=True)
     status: Mapped[str] = mapped_column(String(16), default="FROZEN")
+    snapshot_sealed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     algorithm_version: Mapped[str] = mapped_column(String(32), default="hmac-sha256-v1")
     manifest_commitment: Mapped[str] = mapped_column(String(64))
     total_entries: Mapped[int] = mapped_column(Integer)

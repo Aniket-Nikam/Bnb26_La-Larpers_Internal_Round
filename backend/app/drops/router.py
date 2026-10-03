@@ -253,14 +253,25 @@ def open_drop(
 def close(
     drop_id: UUID, body: s.EmptyInput, request: Request, db: DB, principal: ORGANIZER, key: KEY
 ):
-    raise DomainError("NOT_IMPLEMENTED", "Closure is not yet implemented.", 501)
+    from app.allocation.draw import close_drop
+
+    return drop_command(db, request, principal, key, drop_id, body, close_drop)
 
 
 @router.post("/admin/drops/{drop_id}/draw", response_model=s.DrawStatus, status_code=202)
 def draw(
     drop_id: UUID, body: s.EmptyInput, request: Request, db: DB, principal: ORGANIZER, key: KEY
 ):
-    raise DomainError("NOT_IMPLEMENTED", "Drawing is not yet implemented.", 501)
+    from app.allocation.draw import trigger_draw
+
+    require_drop_access(principal, drop_id)
+
+    def execute():
+        drop = access(db, drop_id, principal, lock=True)
+        run = trigger_draw(db, drop, principal)
+        return "draw", run.id, None
+
+    return mutation(db, request, principal, key, body.model_dump(), execute)[0]
 
 
 @router.get("/admin/drops/{drop_id}/draw", response_model=s.DrawStatus)
