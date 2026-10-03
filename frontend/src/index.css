@@ -1,9 +1,9 @@
-@import '@fontsource/geist-sans/400.css';
-@import '@fontsource/geist-sans/500.css';
-@import '@fontsource/geist-sans/600.css';
-@import '@fontsource/geist-sans/700.css';
-@import '@fontsource/geist-sans/800.css';
-@import '@fontsource/geist-sans/900.css';
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-sans/700.css";
+@import "@fontsource/geist-sans/800.css";
+@import "@fontsource/geist-sans/900.css";
 
 @tailwind base;
 @tailwind components;
@@ -11,22 +11,293 @@
 
 @layer base {
   :root {
-    --canvas: 0 0 0; 
-    --surface: 17 17 17; 
-    --ink: 255 255 255; 
-    --primary: 255 255 255; 
+    color-scheme: dark;
+    --canvas: 10 11 9;
+    --surface: 18 20 16;
+    --surface-high: 25 28 22;
+    --line: 255 255 255;
+    --ink: 242 244 238;
+    --muted: 163 168 153;
+    --accent: 190 225 82;
+    --danger: 248 113 113;
+    --radius-panel: 28px;
+    --radius-control: 14px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background: rgb(var(--canvas));
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(
+        circle at 78% -10%,
+        rgb(var(--accent) / 0.08),
+        transparent 28rem
+      ),
+      rgb(var(--canvas));
+    color: rgb(var(--ink));
+    font-family:
+      "Geist Sans",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body::before {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    content: "";
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background: rgb(var(--accent));
+    color: rgb(var(--canvas));
+  }
+
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  a,
+  summary {
+    outline: none;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  summary:focus-visible {
+    box-shadow:
+      0 0 0 3px rgb(var(--canvas)),
+      0 0 0 5px rgb(var(--accent));
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(var(--muted) / 0.7);
+  }
+
+  select option {
+    background: rgb(var(--surface));
+    color: rgb(var(--ink));
   }
 }
 
-body {
-  background-color: rgb(var(--canvas));
-  color: rgb(var(--ink));
-  font-family: 'Geist Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
 @layer components {
-  .field { @apply w-full rounded-2xl border border-white/20 bg-black px-5 py-3 text-white outline-none focus:border-white; }
-  .button { @apply inline-flex items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black disabled:opacity-40 disabled:cursor-not-allowed; }
+  .app-shell {
+    @apply min-h-[100dvh] text-[rgb(var(--ink))];
+  }
+
+  .page-wrap {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .surface {
+    border: 1px solid rgb(var(--line) / 0.1);
+    border-radius: var(--radius-panel);
+    background:
+      linear-gradient(145deg, rgb(var(--line) / 0.035), transparent 45%),
+      rgb(var(--surface));
+    box-shadow:
+      inset 0 1px 0 rgb(var(--line) / 0.06),
+      0 24px 70px rgb(0 0 0 / 0.2);
+  }
+
+  .surface-soft {
+    border: 1px solid rgb(var(--line) / 0.08);
+    border-radius: var(--radius-panel);
+    background: rgb(var(--surface) / 0.72);
+  }
+
+  .button {
+    @apply inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+    background: rgb(var(--accent));
+    color: rgb(var(--canvas));
+  }
+
+  .button:hover:not(:disabled) {
+    background: rgb(210 238 119);
+    transform: translateY(-1px);
+  }
+
+  .button-secondary {
+    @apply button;
+    border: 1px solid rgb(var(--line) / 0.16);
+    background: rgb(var(--line) / 0.055);
+    color: rgb(var(--ink));
+  }
+
+  .button-secondary:hover:not(:disabled) {
+    background: rgb(var(--line) / 0.1);
+  }
+
+  .button-ghost {
+    @apply inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition duration-200 active:scale-[0.98];
+    color: rgb(var(--muted));
+  }
+
+  .button-ghost:hover {
+    background: rgb(var(--line) / 0.06);
+    color: rgb(var(--ink));
+  }
+
+  .button-danger {
+    @apply button-secondary;
+    border-color: rgb(var(--danger) / 0.3);
+    color: rgb(var(--danger));
+  }
+
+  .field {
+    @apply w-full px-4 py-3 text-base outline-none transition duration-200;
+    min-height: 48px;
+    border: 1px solid rgb(var(--line) / 0.14);
+    border-radius: var(--radius-control);
+    background: rgb(var(--canvas) / 0.62);
+    color: rgb(var(--ink));
+  }
+
+  .field:hover {
+    border-color: rgb(var(--line) / 0.24);
+  }
+
+  .field:focus {
+    border-color: rgb(var(--accent) / 0.85);
+    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.11);
+  }
+
+  textarea.field {
+    min-height: 118px;
+    resize: vertical;
+  }
+
+  .field-label {
+    @apply mb-2 block text-sm font-semibold;
+    color: rgb(var(--ink) / 0.86);
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.18em];
+    color: rgb(var(--accent));
+  }
+
+  .page-title {
+    @apply text-4xl font-semibold leading-[0.98] tracking-[-0.045em] sm:text-5xl lg:text-6xl;
+  }
+
+  .muted {
+    color: rgb(var(--muted));
+  }
+
+  .accent {
+    color: rgb(var(--accent));
+  }
+
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold tracking-wide;
+    border: 1px solid rgb(var(--line) / 0.11);
+    background: rgb(var(--line) / 0.05);
+    color: rgb(var(--muted));
+  }
+
+  .status-badge[data-tone="active"],
+  .status-badge[data-tone="success"] {
+    border-color: rgb(var(--accent) / 0.28);
+    background: rgb(var(--accent) / 0.1);
+    color: rgb(var(--accent));
+  }
+
+  .status-badge[data-tone="danger"] {
+    border-color: rgb(var(--danger) / 0.28);
+    background: rgb(var(--danger) / 0.08);
+    color: rgb(var(--danger));
+  }
+
+  .metric-number {
+    @apply font-mono text-3xl font-semibold tracking-[-0.04em] sm:text-4xl;
+  }
+
+  .mono {
+    @apply font-mono;
+  }
+
+  .skeleton {
+    border-radius: var(--radius-control);
+    background: rgb(var(--line) / 0.07);
+  }
+
+  .link {
+    @apply font-semibold underline decoration-white/25 underline-offset-4 transition;
+  }
+
+  .link:hover {
+    color: rgb(var(--accent));
+    text-decoration-color: rgb(var(--accent) / 0.65);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+@keyframes skeleton-shift {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: skeleton-shift 1.6s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .surface,
+  .surface-soft {
+    background: rgb(var(--surface));
+  }
+}

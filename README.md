@@ -118,4 +118,5 @@ npm run generate:frontend
 ```
 
 See [INTEGRATION_REPORT.md](INTEGRATION_REPORT.md) for executed checks and limits,
-and [contracts/HANDOFF.md](contracts/HANDOFF.md) for the shared interfaces.
+[contracts/HANDOFF.md](contracts/HANDOFF.md) for the shared interfaces, and
+[docs/hackathon-demo.md](docs/hackathon-demo.md) for the five-minute judge flow.
