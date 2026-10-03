@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { TicketCard } from "../components/Ticket";
@@ -657,6 +657,126 @@ export function AttackLab() {
 export function ProfilePage() {
   const session = useSession();
   const action = useAction();
+
+  const detectedTimezone = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      return "UTC";
+    }
+  }, []);
+
+  const savedTimezone = session.data?.principal.timezone;
+  const initialTimezone =
+    savedTimezone && savedTimezone !== "UTC"
+      ? savedTimezone
+      : detectedTimezone || "UTC";
+
+  const [timezone, setTimezone] = useState(initialTimezone);
+
+  useEffect(() => {
+    if (session.data?.principal.timezone) {
+      const tz = session.data.principal.timezone;
+      setTimezone(tz === "UTC" && detectedTimezone ? detectedTimezone : tz);
+    }
+  }, [session.data?.principal.timezone, detectedTimezone]);
+
+  const timezonesByRegion = useMemo(() => {
+    let list: string[] = [];
+    if (
+      typeof Intl !== "undefined" &&
+      typeof Intl.supportedValuesOf === "function"
+    ) {
+      try {
+        list = Intl.supportedValuesOf("timeZone");
+      } catch {
+        // Fallback below
+      }
+    }
+    if (!list.length) {
+      list = [
+        "UTC",
+        "Africa/Cairo",
+        "Africa/Johannesburg",
+        "Africa/Lagos",
+        "Africa/Nairobi",
+        "America/Anchorage",
+        "America/Argentina/Buenos_Aires",
+        "America/Bogota",
+        "America/Chicago",
+        "America/Denver",
+        "America/Halifax",
+        "America/Los_Angeles",
+        "America/Mexico_City",
+        "America/New_York",
+        "America/Phoenix",
+        "America/Santiago",
+        "America/Sao_Paulo",
+        "America/Toronto",
+        "America/Vancouver",
+        "Asia/Bangkok",
+        "Asia/Calcutta",
+        "Asia/Colombo",
+        "Asia/Dhaka",
+        "Asia/Dubai",
+        "Asia/Hong_Kong",
+        "Asia/Jakarta",
+        "Asia/Jerusalem",
+        "Asia/Karachi",
+        "Asia/Kathmandu",
+        "Asia/Kolkata",
+        "Asia/Kuala_Lumpur",
+        "Asia/Manila",
+        "Asia/Seoul",
+        "Asia/Shanghai",
+        "Asia/Singapore",
+        "Asia/Taipei",
+        "Asia/Tokyo",
+        "Atlantic/Reykjavik",
+        "Australia/Adelaide",
+        "Australia/Brisbane",
+        "Australia/Melbourne",
+        "Australia/Perth",
+        "Australia/Sydney",
+        "Europe/Amsterdam",
+        "Europe/Athens",
+        "Europe/Berlin",
+        "Europe/Brussels",
+        "Europe/Budapest",
+        "Europe/Dublin",
+        "Europe/Helsinki",
+        "Europe/Istanbul",
+        "Europe/Lisbon",
+        "Europe/London",
+        "Europe/Madrid",
+        "Europe/Paris",
+        "Europe/Prague",
+        "Europe/Rome",
+        "Europe/Stockholm",
+        "Europe/Vienna",
+        "Europe/Warsaw",
+        "Pacific/Auckland",
+        "Pacific/Fiji",
+        "Pacific/Guam",
+        "Pacific/Honolulu",
+      ];
+    }
+    const set = new Set(list);
+    if (detectedTimezone) set.add(detectedTimezone);
+    if (timezone) set.add(timezone);
+    set.add("UTC");
+
+    const sorted = Array.from(set).sort((a, b) => a.localeCompare(b));
+    const groups: Record<string, string[]> = {};
+    for (const tz of sorted) {
+      const parts = tz.split("/");
+      const region = parts.length > 1 ? parts[0] : "Standard / Other";
+      if (!groups[region]) groups[region] = [];
+      groups[region].push(tz);
+    }
+    return groups;
+  }, [detectedTimezone, timezone]);
+
   if (!session.data)
     return <Link to="/sign-in">Sign in to edit your profile</Link>;
   return (
@@ -687,14 +807,46 @@ export function ProfilePage() {
             defaultValue={session.data.principal.display_name}
           />
         </label>
-        <label>
-          IANA timezone
-          <input
+        <label className="block">
+          <div className="flex items-center justify-between text-sm">
+            <span>IANA timezone</span>
+            {detectedTimezone && timezone !== detectedTimezone && (
+              <button
+                type="button"
+                onClick={() => setTimezone(detectedTimezone)}
+                className="text-xs text-white/60 hover:text-white underline"
+              >
+                Use detected ({detectedTimezone})
+              </button>
+            )}
+          </div>
+          <select
             className="field mt-2"
             name="timezone"
             required
-            defaultValue={session.data.principal.timezone}
-          />
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+          >
+            {detectedTimezone && (
+              <optgroup label="Detected location">
+                <option value={detectedTimezone}>
+                  {detectedTimezone} (Detected from your location)
+                </option>
+              </optgroup>
+            )}
+            {Object.entries(timezonesByRegion).map(([region, zones]) => (
+              <optgroup key={region} label={region}>
+                {zones.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <span className="text-xs text-white/50 mt-1 block">
+            Detected from location: {detectedTimezone}
+          </span>
         </label>
         <button className="button" disabled={action.isPending}>
           Save profile

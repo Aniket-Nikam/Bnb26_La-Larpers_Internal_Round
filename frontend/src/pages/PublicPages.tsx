@@ -347,28 +347,60 @@ export function SignInPage() {
 }
 
 export function RegisterPage() {
+  const [role, setRole] = useState<"participant" | "organizer" | "admin">(
+    "participant",
+  );
   const register = useRegister();
   const navigate = useNavigate();
   return (
     <div className="max-w-md mx-auto pt-16">
       <TicketCard className="p-10 space-y-8">
         <UserPlus />
-        <h1 className="text-3xl font-bold">Create visitor account</h1>
+        <h1 className="text-3xl font-bold">
+          Create {role === "admin" ? "admin" : role === "organizer" ? "organizer" : "visitor"} account
+        </h1>
         <form
           className="space-y-6"
           onSubmit={(event) => {
             event.preventDefault();
             const fields = new FormData(event.currentTarget);
+            const selectedRole =
+              (fields.get("role") as "participant" | "organizer" | "admin") ||
+              "participant";
             register.mutate(
               {
                 display_name: String(fields.get("display_name")),
                 email: String(fields.get("email")),
                 password: String(fields.get("password")),
+                role: selectedRole,
               },
-              { onSuccess: () => navigate("/profile") },
+              {
+                onSuccess: () => {
+                  if (selectedRole === "admin" || selectedRole === "organizer") {
+                    navigate("/organizer");
+                  } else {
+                    navigate("/profile");
+                  }
+                },
+              },
             );
           }}
         >
+          <label className="block">
+            Account type
+            <select
+              className="field mt-3"
+              name="role"
+              value={role}
+              onChange={(e) =>
+                setRole(e.target.value as "participant" | "organizer" | "admin")
+              }
+            >
+              <option value="participant">Participant (Enter drops, verify proofs)</option>
+              <option value="organizer">Organizer (Create drops, grant invitations)</option>
+              <option value="admin">Admin (Full administrative &amp; Attack Lab access)</option>
+            </select>
+          </label>
           <label className="block">
             Display name
             <input

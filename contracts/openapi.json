@@ -6888,6 +6888,27 @@
             "maxLength": 100,
             "minLength": 1,
             "title": "Display Name"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "participant",
+              "organizer",
+              "admin"
+            ],
+            "title": "Role",
+            "default": "participant"
+          },
+          "admin_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Key"
           }
         },
         "additionalProperties": false,

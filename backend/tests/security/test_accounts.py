@@ -71,3 +71,24 @@ def test_registration_validates_public_fields(client):
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_admin_can_register_and_sign_in(client, db):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={
+            "display_name": "Admin User",
+            "email": "admin@example.com",
+            "password": "super-secure-admin-pass",
+            "role": "admin",
+        },
+        headers=ORIGIN,
+    )
+    assert registered.status_code == 201, registered.text
+    assert registered.json()["principal"]["role"] == "admin"
+    assert "fd_session" in registered.cookies
+
+    user = db.scalar(select(User).where(User.email == "admin@example.com"))
+    assert user is not None
+    assert user.role == "admin"
+

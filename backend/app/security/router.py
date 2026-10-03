@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 
 from app.core import schemas as s
 from app.core.clock import db_now
+from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.core.idempotency import claim, complete
 from app.persistence.database import get_db
@@ -76,11 +77,18 @@ def register(body: s.RegistrationInput, request: Request, response: Response, db
     db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(body.email, 0))))
     if db.scalar(select(User.id).where(func.lower(User.email) == body.email)):
         raise DomainError("ACCOUNT_EXISTS", "An account with this email already exists.", 409)
+    cfg = get_settings()
+    if cfg.app_profile == "normal" and body.role in {"organizer", "admin"}:
+        key = cfg.session_digest_key.get_secret_value()
+        if not body.admin_key or body.admin_key != key:
+            raise DomainError(
+                "FORBIDDEN", "Admin registration requires a valid admin key in production.", 403
+            )
     user = User(
         display_name=body.display_name,
         email=body.email,
         password_hash=hash_password(body.password),
-        role="participant",
+        role=body.role,
     )
     db.add(user)
     db.flush()

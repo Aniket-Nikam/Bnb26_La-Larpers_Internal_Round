@@ -1241,6 +1241,14 @@ export interface components {
             password: string;
             /** Display Name */
             display_name: string;
+            /**
+             * Role
+             * @default participant
+             * @enum {string}
+             */
+            role: "participant" | "organizer" | "admin";
+            /** Admin Key */
+            admin_key?: string | null;
         };
         /** ReportPending */
         ReportPending: {
