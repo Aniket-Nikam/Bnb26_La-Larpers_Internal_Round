@@ -41,8 +41,8 @@ The browser displays this state, reconciles after network failures and never dec
 | --- | --- | --- | --- |
 | WB-01 | Timed equal-entry draw | P1 | Proposed; tests/review pending |
 | WB-02 | PostgreSQL seat/entry authority | P1 | Proposed; tests/review pending |
-| WB-03 | Durable invitation-based sessions | P2 | Proposed; tests/review pending |
-| WB-04 | Layered limits; shared-IP caution | P2 | Proposed; tests/review pending |
+| WB-03 | Durable invitation-based sessions | P2 | Implemented on feature/m2-security (backend/app/security/sessions.py, provisioning.py, csrf.py); tests in backend/tests/security |
+| WB-04 | Layered limits; shared-IP caution | P2 | Implemented on feature/m2-security (backend/app/security/limits.py Lua sliding window); tests in test_limits.py |
 | WB-05 | Commitment/reproducible proof | P1 | Proposed; tests/review pending |
 | WB-06 | Server-driven client recovery | P3 | Proposed; tests/review pending |
 | WB-07 | Isolated real HTTP attack lab | P4 | Proposed; tests/review pending |
