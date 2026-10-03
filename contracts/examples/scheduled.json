@@ -1,0 +1,23 @@
+{
+  "id": "20000000-0000-4000-8000-000000000001",
+  "title": "Schema fixture",
+  "category": "workshop",
+  "organizer": {
+    "public_id": "organizer-example",
+    "display_name": "Example organizer"
+  },
+  "location_type": "venue",
+  "location_label": "Example venue",
+  "starts_at": "2026-10-03T12:00:00Z",
+  "ends_at": "2026-10-03T12:00:00Z",
+  "capacity": 1,
+  "phase": "SCHEDULED",
+  "mode": "LOTTERY",
+  "description": "Contract example only.",
+  "confirmation_seconds": 60,
+  "rules_version": "v1.0",
+  "eligibility_policy": "invitation",
+  "seed_commitment": "0000000000000000000000000000000000000000000000000000000000000000",
+  "server_time": "2026-10-03T12:00:00Z",
+  "cancellation_reason": null
+}
