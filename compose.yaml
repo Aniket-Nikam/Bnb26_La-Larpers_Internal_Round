@@ -1,0 +1,141 @@
+name: fairdrop
+
+x-api-common: &api-common
+  build:
+    context: ./backend
+    target: runtime
+  restart: unless-stopped
+  environment: &api-environment
+    APP_PROFILE: ${APP_PROFILE:-normal}
+    DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+    PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is required}
+    SESSION_DIGEST_KEY: ${SESSION_DIGEST_KEY:?SESSION_DIGEST_KEY is required}
+    CREDENTIAL_DIGEST_KEY: ${CREDENTIAL_DIGEST_KEY:?CREDENTIAL_DIGEST_KEY is required}
+    SEED_ENCRYPTION_KEY: ${SEED_ENCRYPTION_KEY:?SEED_ENCRYPTION_KEY is required}
+    COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    DB_POOL_SIZE: ${DB_POOL_SIZE:-8}
+    DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-2}
+    LAB_ENABLED: "false"
+    FCFS_DEMO_ENABLED: "false"
+    FIXTURE_SEEDING_ENABLED: "false"
+    DEVELOPMENT_MOCKS_ENABLED: "false"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_started
+  stop_grace_period: 30s
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/live', timeout=2)"]
+    interval: 10s
+    timeout: 3s
+    retries: 6
+    start_period: 20s
+  networks: [app]
+
+services:
+  postgres:
+    image: postgres:18.0-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fairdrop}
+      POSTGRES_USER: ${POSTGRES_USER:-fairdrop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    stop_grace_period: 30s
+    networks: [app]
+
+  redis:
+    image: redis:8.2.1-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    stop_grace_period: 10s
+    networks: [app]
+
+  migrate:
+    <<: *api-common
+    restart: "no"
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    healthcheck:
+      disable: true
+
+  api-a:
+    <<: *api-common
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "10.42.0.10"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  api-b:
+    <<: *api-common
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "10.42.0.10"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  worker:
+    <<: *api-common
+    command: ["python", "-m", "app.allocation.worker"]
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  frontend-build:
+    build:
+      context: ./frontend
+      target: build
+    restart: "no"
+    command: ["sh", "-c", "rm -rf /output/* && cp -R /app/dist/. /output/"]
+    volumes:
+      - frontend-assets:/output
+    networks: [app]
+
+  gateway:
+    image: nginx:1.29.2-alpine
+    restart: unless-stopped
+    ports:
+      - "${FAIRDROP_PORT:-8080}:8080"
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+      - frontend-assets:/usr/share/nginx/html:ro
+    depends_on:
+      api-a:
+        condition: service_healthy
+      api-b:
+        condition: service_healthy
+      frontend-build:
+        condition: service_completed_successfully
+    stop_grace_period: 15s
+    networks:
+      app:
+        ipv4_address: 10.42.0.10
+
+volumes:
+  postgres-data:
+  frontend-assets:
+
+networks:
+  app:
+    ipam:
+      config:
+        - subnet: 10.42.0.0/24

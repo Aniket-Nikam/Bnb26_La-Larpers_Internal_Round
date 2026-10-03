@@ -33,12 +33,20 @@ env/
 .coverage
 htmlcov/
 
-# Environments & secrets
+# Environments, credentials, and private fixtures
 .env
 .env.local
 .env.*.local
 *.pem
 *.key
+private/
+
+# Generated reports and browser output
+reports/*/
+!reports/README.md
+test-results/
+playwright-report/
+.tmp/
 
 # IDE
 .idea/
@@ -48,8 +56,8 @@ htmlcov/
 
 # Node / frontend
 node_modules/
-dist/
 .npm/
+frontend/dist/
 
 # OS
 .DS_Store
