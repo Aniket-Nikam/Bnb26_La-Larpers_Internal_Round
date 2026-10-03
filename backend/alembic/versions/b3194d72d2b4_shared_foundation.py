@@ -422,6 +422,19 @@ def downgrade():
     op.drop_table("users")
     # ### end Alembic commands ###
 
-    for table in ("users", "access_credentials", "sessions", "eligibility_grants"):
-        op.execute(f"ALTER TABLE legacy_security.{table} SET SCHEMA public")
-    op.execute("DROP SCHEMA legacy_security")
+    if sa.inspect(op.get_bind()).has_table("users", schema="legacy_security"):
+        for table in ("users", "access_credentials", "sessions", "eligibility_grants"):
+            op.execute(f"ALTER TABLE legacy_security.{table} SET SCHEMA public")
+        op.execute("DROP SCHEMA legacy_security")
+    else:
+        # An already-stamped M1 database never ran the historical P2 root.
+        # Materialize that revision's empty schema when downgrading into it.
+        import importlib.util
+        from pathlib import Path
+
+        spec = importlib.util.spec_from_file_location(
+            "legacy_security_revision", Path(__file__).with_name("0001_security_tables.py")
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.upgrade()
