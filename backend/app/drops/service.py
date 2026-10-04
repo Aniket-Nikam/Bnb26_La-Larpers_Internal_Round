@@ -41,7 +41,7 @@ def owned(drop, principal):
 
 def draft_only(drop):
     if drop.phase != "DRAFT":
-        raise DomainError("INVALID_STATE", "Eligibility and rule fields are locked at publication.")
+        raise DomainError("INVALID_STATE", "Rule fields are locked at publication.")
 
 
 def create(db, principal, payload):
@@ -164,15 +164,18 @@ def enter(db, drop_id, principal):
         raise DomainError("ENTRY_CLOSED", "The entry window has closed.")
     if drop.phase != "OPEN" or now < drop.starts_at:
         raise DomainError("ENTRY_NOT_OPEN", "The entry window has not opened.")
-    grant = db.scalar(
-        select(m.EligibilityGrant).where(
-            m.EligibilityGrant.drop_id == drop.id,
-            m.EligibilityGrant.user_id == principal.id,
-            m.EligibilityGrant.revoked_at.is_(None),
+    # Published drops are open to every authenticated participant. Keep a
+    # qualifying grant as internal provenance so the existing immutable entry
+    # foreign key remains valid, but create it automatically on first entry.
+    grant_id = db.scalar(
+        insert(m.EligibilityGrant)
+        .values(drop_id=drop.id, user_id=principal.id, granted_by=drop.owner_id)
+        .on_conflict_do_update(
+            index_elements=["drop_id", "user_id"],
+            set_={"revoked_at": None, "granted_by": drop.owner_id},
         )
+        .returning(m.EligibilityGrant.id)
     )
-    if grant is None:
-        raise DomainError("INVITATION_REQUIRED", "An invitation for this drop is required.", 403)
     sequence = None
     if drop.mode == "FCFS_DEMO":
         if get_settings().app_profile != "demo":
@@ -186,7 +189,7 @@ def enter(db, drop_id, principal):
         .values(
             drop_id=drop.id,
             user_id=principal.id,
-            qualifying_grant_id=grant.id,
+            qualifying_grant_id=grant_id,
             joined_at=now,
             admission_sequence=sequence,
         )

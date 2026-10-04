@@ -125,12 +125,6 @@ def prepare_open(api, actors, payload, factory):
     created = api.post("/api/v1/admin/drops", json=payload, headers=headers(actors[0]))
     assert created.status_code == 201, created.text
     drop_id = created.json()["id"]
-    grant = api.post(
-        f"/api/v1/admin/drops/{drop_id}/eligibility",
-        json={"user_public_ids": [a.public_id for a in actors[1:3]]},
-        headers=headers(actors[0]),
-    )
-    assert grant.status_code == 200, grant.text
     published = api.post(
         f"/api/v1/admin/drops/{drop_id}/publish", json={}, headers=headers(actors[0])
     )

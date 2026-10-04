@@ -102,6 +102,7 @@ class PasswordSessionInput(DTO):
 
 class RegistrationInput(PasswordSessionInput):
     display_name: str = Field(min_length=1, max_length=100)
+    face_image: str | None = None
 
     @field_validator("display_name")
     @classmethod
@@ -162,7 +163,7 @@ class DropDetail(DropSummary):
     description: str
     confirmation_seconds: int
     rules_version: str
-    eligibility_policy: Literal["invitation"] = "invitation"
+    eligibility_policy: Literal["authenticated"] = "authenticated"
     seed_commitment: str | None
     server_time: UtcDatetime
     cancellation_reason: str | None

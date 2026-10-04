@@ -59,15 +59,6 @@ def test_authenticated_entry_receipt_offer_confirmation_and_public_verifier(
     created = write(client, "/admin/drops", org["csrf_token"], payload)
     assert created.status_code == 201, created.text
     drop_id = created.json()["id"]
-    assert (
-        write(
-            client,
-            f"/admin/drops/{drop_id}/eligibility",
-            org["csrf_token"],
-            {"user_public_ids": [test_user["user"].public_id]},
-        ).status_code
-        == 200
-    )
     assert write(client, f"/admin/drops/{drop_id}/publish", org["csrf_token"]).status_code == 200
     deadline = time.monotonic() + 5
     while client.get(f"/api/v1/drops/{drop_id}").json()["phase"] != "OPEN":

@@ -10,7 +10,7 @@ from app.persistence import models as m
 from .conftest import headers, prepare_open
 
 
-def test_publication_locks_policy_grants_and_exact_capacity(api, actors, draft_payload, factory):
+def test_publication_locks_rules_and_exact_capacity(api, actors, draft_payload, factory):
     key = uuid4()
     path = "/api/v1/admin/drops"
     # Inputs may carry an offset, but every response must be canonical UTC with Z.
@@ -53,12 +53,12 @@ def test_publication_locks_policy_grants_and_exact_capacity(api, actors, draft_p
         f"/api/v1/admin/drops/{drop_id}", json={"title": "Updated"}, headers=headers(actors[0])
     )
     assert edit.json()["title"] == "Updated"
-    grant = api.post(
+    removed_grant_route = api.post(
         f"/api/v1/admin/drops/{drop_id}/eligibility",
         json={"user_public_ids": [actors[1].public_id]},
         headers=headers(actors[0]),
     )
-    assert grant.status_code == 409
+    assert removed_grant_route.status_code == 404
     forbidden = api.post(
         f"/api/v1/admin/drops/{drop_id}/publish", json={}, headers=headers(actors[1])
     )
@@ -118,21 +118,9 @@ def test_concurrent_same_account_same_and_different_keys(api, actors, draft_payl
     )
 
 
-def test_grants_cancel_pagination_and_draft_validation(api, actors, draft_payload, factory):
+def test_cancel_pagination_and_draft_validation(api, actors, draft_payload, factory):
     created = api.post("/api/v1/admin/drops", json=draft_payload, headers=headers(actors[0]))
     drop_id = created.json()["id"]
-    grant_path = f"/api/v1/admin/drops/{drop_id}/eligibility"
-    unknown = api.post(
-        grant_path, json={"user_public_ids": ["nonexistent"]}, headers=headers(actors[0])
-    )
-    assert unknown.status_code == 422
-    granted = api.post(
-        grant_path, json={"user_public_ids": [actors[1].public_id]}, headers=headers(actors[0])
-    )
-    assert granted.json()["granted_count"] == 1
-    remove = f"{grant_path}/{actors[1].public_id}"
-    assert api.delete(remove, headers=headers(actors[0])).status_code == 204
-    assert api.delete(remove, headers=headers(actors[0])).status_code == 204
     bad = api.patch(
         f"/api/v1/admin/drops/{drop_id}",
         json={"starts_at": draft_payload["ends_at"]},

@@ -151,18 +151,9 @@ def state(drop_id: UUID, db: DB, principal: PARTICIPANT):
     entry = db.scalar(
         select(m.Entry).where(m.Entry.drop_id == drop_id, m.Entry.user_id == principal.id)
     )
-    grant = db.scalar(
-        select(m.EligibilityGrant).where(
-            m.EligibilityGrant.drop_id == drop_id, m.EligibilityGrant.user_id == principal.id
-        )
-    )
-    eligible = grant is not None and grant.revoked_at is None
     return s.MyDropState(
         entry=view.entry_state(db, entry) if entry else None,
-        eligibility=s.Eligibility(
-            eligible=eligible,
-            reason=None if eligible else ("REVOKED" if grant else "INVITATION_REQUIRED"),
-        ),
+        eligibility=s.Eligibility(eligible=True, reason=None),
         server_time=db_now(db),
     )
 
@@ -456,29 +447,3 @@ def export(drop_id: UUID, db: DB, principal: ORGANIZER):
         headers={"Content-Disposition": 'attachment; filename="entries.csv"'},
     )
 
-
-@router.post("/admin/drops/{drop_id}/eligibility", response_model=s.GrantSummary)
-def grant(
-    drop_id: UUID, body: s.GrantInput, request: Request, db: DB, principal: ORGANIZER, key: KEY
-):
-    require_drop_access(principal, drop_id)
-
-    def execute():
-        drop = access(db, drop_id, principal, lock=True)
-        return "grant", None, svc.grant(db, drop, principal, body)
-
-    return mutation(db, request, principal, key, body.model_dump(), execute)[0]
-
-
-@router.delete("/admin/drops/{drop_id}/eligibility/{user_public_id}", status_code=204)
-def revoke(
-    drop_id: UUID, user_public_id: str, request: Request, db: DB, principal: ORGANIZER, key: KEY
-):
-    require_drop_access(principal, drop_id)
-
-    def execute():
-        drop = access(db, drop_id, principal, lock=True)
-        svc.revoke(db, drop, principal, user_public_id)
-        return "removed", None, None
-
-    return mutation(db, request, principal, key, {}, execute)[0]

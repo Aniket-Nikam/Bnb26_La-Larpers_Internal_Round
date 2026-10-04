@@ -50,10 +50,11 @@ async def request_context(request: Request, call_next):
         request.state.request_id = str(uuid4())
     if request.method in {"POST", "PATCH", "DELETE"}:
         # Enforce a real bounded read, including chunked bodies, before JSON parsing.
+        max_size = 2 * 1024 * 1024 if request.url.path.endswith("/auth/register") else 65536
         body = bytearray()
         async for chunk in request.stream():
             body.extend(chunk)
-            if len(body) > 65536:
+            if len(body) > max_size:
                 response = error_response(
                     request, "VALIDATION_ERROR", "Request body is too large.", 413
                 )
@@ -84,7 +85,7 @@ def ready():
     try:
         with get_engine().connect() as conn:
             version = conn.scalar(text("SELECT version_num FROM alembic_version LIMIT 1"))
-            db_ok = version == "e4f200000001"
+            db_ok = version in {"e4f200000001", "e5f300000001"}
     except Exception:
         pass
     try:

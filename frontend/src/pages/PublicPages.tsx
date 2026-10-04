@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
   CalendarDays,
+  Camera,
   Check,
   CheckCircle2,
   Clock3,
@@ -11,6 +12,8 @@ import {
   KeyRound,
   Lock,
   MapPin,
+  RefreshCw,
+  ScanFace,
   Search,
   ShieldCheck,
   Sparkles,
@@ -296,8 +299,8 @@ export function LandingPage() {
             Ready to enter without racing?
           </h2>
           <p className="mt-3 max-w-xl muted">
-            Create an account, receive eligibility from an organizer, and keep
-            one durable receipt.
+            Create an account, enter once during the open window, and keep one
+            durable receipt.
           </p>
         </div>
         <Link className="button" to="/register">
@@ -678,16 +681,16 @@ export function DropDetail() {
             <LoadingBlock label="Checking session" />
           ) : !session.data ? (
             <div className="flex flex-col items-start gap-4">
-              <h2 className="text-2xl font-semibold">Check your invitation</h2>
+              <h2 className="text-2xl font-semibold">Sign in to enter</h2>
               <p className="muted">
-                Sign in to see eligibility and save your entry.
+                Every authenticated participant can save one durable entry.
               </p>
               <Link className="button" to="/sign-in">
                 Sign in to continue
               </Link>
             </div>
           ) : state.isPending ? (
-            <LoadingBlock label="Checking eligibility" />
+            <LoadingBlock label="Checking entry status" />
           ) : state.data?.entry ? (
             <SavedEntry
               key={
@@ -698,23 +701,16 @@ export function DropDetail() {
           ) : (
             <div className="flex flex-col items-start gap-5">
               <div>
-                <h2 className="text-2xl font-semibold">
-                  {state.data?.eligibility.eligible
-                    ? "Invitation verified."
-                    : "Invitation required."}
-                </h2>
+                <h2 className="text-2xl font-semibold">Ready to enter.</h2>
                 <p className="mt-2 muted">
-                  {state.data?.eligibility.eligible
-                    ? "Your identity may submit one durable entry during the open window."
-                    : "Ask the organizer to grant this account access to the drop."}
+                  Your account may submit one durable entry during the open
+                  window. Refreshes and retries return the same entry.
                 </p>
               </div>
               <button
                 className="button"
                 disabled={
-                  action.isPending ||
-                  !state.data?.eligibility.eligible ||
-                  d.phase !== "OPEN"
+                  action.isPending || d.phase !== "OPEN"
                 }
                 onClick={() =>
                   action.mutate({ path: "/drops/" + id + "/entries" })
@@ -905,7 +901,190 @@ export function SignInPage() {
   );
 }
 
+function FaceScanner({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (image: string | null) => void;
+  disabled?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const stop = () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+    if (value) {
+      stop();
+      setCameraActive(false);
+      return stop;
+    }
+    const start = async () => {
+      setCameraError(null);
+      try {
+        stop();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 640 },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          try {
+            await videoRef.current.play();
+          } catch (error) {
+            if (!(error instanceof Error && error.name === "AbortError")) throw error;
+          }
+        }
+        if (!cancelled) setCameraActive(true);
+      } catch (error) {
+        if (cancelled || (error instanceof Error && error.name === "AbortError")) return;
+        setCameraError(
+          error instanceof Error && error.name === "NotAllowedError"
+            ? "Camera access was denied. Allow camera access and retry."
+            : "The camera is unavailable. Check the device and retry.",
+        );
+        setCameraActive(false);
+      }
+    };
+    void start();
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [retryKey, value]);
+
+  const capture = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+    const size = Math.min(video.videoWidth, video.videoHeight, 640);
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const sourceSize = Math.min(video.videoWidth, video.videoHeight);
+    const sourceX = (video.videoWidth - sourceSize) / 2;
+    const sourceY = (video.videoHeight - sourceSize) / 2;
+    context.translate(size, 0);
+    context.scale(-1, 1);
+    context.drawImage(
+      video,
+      sourceX,
+      sourceY,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      size,
+      size,
+    );
+    onChange(canvas.toDataURL("image/jpeg", 0.82));
+  };
+
+  return (
+    <div className="overflow-hidden rounded-[var(--radius-control)] border border-white/10 bg-white/[0.025]">
+      <div className="grid gap-0 sm:grid-cols-[minmax(0,1fr)_13rem]">
+        <div className="relative aspect-[4/3] overflow-hidden bg-black/30">
+          {value ? (
+            <img
+              alt="Captured face verification preview"
+              className="h-full w-full object-cover"
+              src={value}
+            />
+          ) : (
+            <video
+              autoPlay
+              className="h-full w-full scale-x-[-1] object-cover"
+              muted
+              playsInline
+              ref={videoRef}
+            />
+          )}
+          {!value && !cameraActive && !cameraError && (
+            <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--canvas)/0.88)]">
+              <div className="text-center">
+                <Camera className="mx-auto h-7 w-7 accent" />
+                <p className="mt-3 text-sm muted">Starting camera...</p>
+              </div>
+            </div>
+          )}
+          {!value && cameraError && (
+            <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--canvas)/0.94)] p-6 text-center">
+              <div>
+                <Camera className="mx-auto h-7 w-7 text-red-300" />
+                <p className="mt-3 text-sm text-red-200" role="alert">
+                  {cameraError}
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="pointer-events-none absolute inset-[12%] rounded-[42%] border border-[rgb(var(--accent)/0.55)]" />
+        </div>
+        <div className="flex flex-col justify-between border-t border-white/10 p-5 sm:border-l sm:border-t-0">
+          <div>
+            <ScanFace className="h-6 w-6 accent" />
+            <p className="mt-4 font-semibold">
+              {value ? "Face captured" : "Center your face"}
+            </p>
+            <p className="mt-2 text-xs leading-relaxed muted">
+              Use even lighting and keep only one person in frame.
+            </p>
+          </div>
+          {value ? (
+            <button
+              className="button-secondary mt-5 w-full"
+              disabled={disabled}
+              onClick={() => onChange(null)}
+              type="button"
+            >
+              <RefreshCw className="h-4 w-4" /> Retake
+            </button>
+          ) : cameraError ? (
+            <button
+              className="button-secondary mt-5 w-full"
+              disabled={disabled}
+              onClick={() => setRetryKey((key) => key + 1)}
+              type="button"
+            >
+              <RefreshCw className="h-4 w-4" /> Retry camera
+            </button>
+          ) : (
+            <button
+              className="button mt-5 w-full"
+              disabled={disabled || !cameraActive}
+              onClick={capture}
+              type="button"
+            >
+              <Camera className="h-4 w-4" /> Capture
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RegisterPage() {
+  const [faceImage, setFaceImage] = useState<string | null>(null);
+  const [faceError, setFaceError] = useState<string | null>(null);
   const register = useRegister();
   const navigate = useNavigate();
   return (
@@ -917,19 +1096,25 @@ export function RegisterPage() {
           Create your participant account.
         </h1>
         <p className="mt-3 muted">
-          Registration creates an identity. Organizers grant drop eligibility
-          separately.
+          Registration creates the identity used to enforce one account, one
+          durable entry per drop.
         </p>
         <form
           className="mt-8 space-y-5"
           onSubmit={(event) => {
             event.preventDefault();
+            setFaceError(null);
+            if (!faceImage) {
+              setFaceError("Capture one clear face scan before creating your account.");
+              return;
+            }
             const fields = new FormData(event.currentTarget);
             register.mutate(
               {
                 display_name: String(fields.get("display_name")),
                 email: String(fields.get("email")),
                 password: String(fields.get("password")),
+                face_image: faceImage,
               },
               { onSuccess: () => navigate("/profile") },
             );
@@ -971,8 +1156,28 @@ export function RegisterPage() {
               Use at least 8 characters.
             </span>
           </label>
+          <div>
+            <span className="field-label">Face verification</span>
+            <p className="mb-4 mt-2 text-sm leading-relaxed muted">
+              This prevents one person from creating several accounts. The
+              server stores a numeric face embedding, not your photo.
+            </p>
+            <FaceScanner
+              value={faceImage}
+              disabled={register.isPending}
+              onChange={(image) => {
+                setFaceImage(image);
+                if (image) setFaceError(null);
+              }}
+            />
+            {faceError && (
+              <p className="mt-3 text-sm text-red-300" role="alert">
+                {faceError}
+              </p>
+            )}
+          </div>
           <button className="button w-full" disabled={register.isPending}>
-            {register.isPending ? "Creating account..." : "Create account"}
+            {register.isPending ? "Verifying identity..." : "Create account"}
           </button>
           <ErrorMessage error={register.error} />
         </form>

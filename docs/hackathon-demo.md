@@ -13,7 +13,7 @@ Say: “Rate limits protect availability. Identity-bound entries protect allocat
 ### 0:35 to 1:25 | A participant enters once
 
 1. Open **Discovery** and choose a published drop.
-2. Sign in with a participant account that has eligibility.
+2. Create or sign in to a participant account. Registration verifies one face per account.
 3. Select **Enter fair draw**.
 4. Refresh the page and show that the same durable receipt returns.
 5. Copy the public entry ID and point out that retrying never creates another entry or improves rank.
@@ -50,7 +50,7 @@ Say: “This report distinguishes requested traffic from delivered traffic, pres
 
 ## Demo data to prepare
 
-- One published lottery drop with 3 seats and 8 to 12 eligible participants.
+- One published lottery drop with 3 seats and 8 to 12 participants.
 - One participant already entered, one offered, and one confirmed.
 - One normal lab report and one retry-flood or policy-comparison report.
 - Organizer and participant credentials stored only in the repository's ignored private directory.
@@ -59,7 +59,7 @@ Say: “This report distinguishes requested traffic from delivered traffic, pres
 ## Judge questions
 
 **Can bots still create many accounts?**  
-Admission quality depends on identity provisioning. FairDrop enforces one entry per admitted identity, supports credential revocation, rate limits abuse, and makes that boundary explicit rather than claiming universal Sybil prevention.
+Registration checks for duplicate facial embeddings, while FairDrop enforces one entry per account and rate limits abuse. Facial similarity is an admission control, not proof of personhood, and the presentation must not claim universal Sybil prevention.
 
 **Does Redis decide who gets a ticket?**  
 No. Redis protects the edge and sessions. PostgreSQL transactions, row locks, and constraints own entries, offers, confirmations, inventory, and audit history.

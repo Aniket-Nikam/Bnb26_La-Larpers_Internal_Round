@@ -1,7 +1,7 @@
 # FairDrop
 
 M1, M2, M3 and M4 are integrated on `main`: a FastAPI/PostgreSQL allocation
-backend, durable invitation sessions and shared Redis limits, a React frontend,
+backend, durable sessions and shared Redis limits, a React frontend,
 and an isolated measured attack lab. All 33 v1 route paths use one shared schema.
 The frontend uses real API responses; development fixtures were removed.
 
@@ -21,19 +21,20 @@ and volumes. Keep its database separate from normal deployments. The stack has
 PostgreSQL 18, Redis, two API replicas, an allocation worker, a dedicated k6 job
 worker, migrations, and a same-origin gateway serving the built frontend.
 
-Provision an organizer offline, then use its code on the invitation tab of the
+Provision an organizer offline, then use its code on the credential tab of the
 sign-in page. Provisioning prints each raw code once; retain it privately:
 
 ```sh
 docker compose -p fairdrop-demo --env-file .env -f compose.yaml -f infra/compose.demo.yaml exec api-a python -m app.security.provision --name Organizer --role organizer
 ```
 
-Visitors can register with email/password or sign in with an invitation
-credential. Registration creates a participant account and signs it in, but does
-not grant access to any drop. Each participant's profile shows the public account
-ID an organizer uses to grant invitations.
-Create a draft, grant invitations, and publish it before its scheduled entry
-start. The allocation worker opens/closes the window, freezes membership,
+Visitors register with email, password, and a camera face scan, or sign in with a
+provisioned access credential. Only the numeric face embedding is retained. The
+duplicate-face check makes creating many accounts materially harder while keeping
+the fairness boundary explicit.
+Create a draft and publish it before its scheduled entry start. Every authenticated
+participant may enter once during the open window. The allocation worker opens and
+closes the window, freezes membership,
 publishes the ranking, offers seats, and promotes expired offers. A saved receipt
 survives refresh; participants confirm their own offers before the server deadline.
 Download a public proof and independently verify it:
@@ -43,7 +44,7 @@ cd backend
 uv run python -m app.audit.verifier /path/to/proof.json
 ```
 
-The lab provisions fresh synthetic accounts, credentials, grants and drops for
+The lab provisions fresh synthetic accounts, credentials, internal grants and drops for
 each trial. It uses ordinary HTTP entry/confirmation routes and the ordinary
 allocation worker. Reports reconcile attempts, unique accepted identities,
 initial offers, inventory, and proof verification against PostgreSQL. Policy

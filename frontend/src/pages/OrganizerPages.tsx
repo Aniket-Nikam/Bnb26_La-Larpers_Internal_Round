@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Database,
   Download,
-  FileUp,
   FlaskConical,
   Gauge,
   Plus,
@@ -306,7 +305,7 @@ export function OrganizerDashboard() {
           <div>
             <h2 className="text-2xl font-semibold">Drop operations</h2>
             <p className="mt-2 text-sm muted">
-              Manage locked rules, invitations, allocation and evidence.
+              Manage locked rules, allocation, integrity and evidence.
             </p>
           </div>
         </div>
@@ -352,7 +351,7 @@ export function CreateDrop() {
       <PageHeader
         eyebrow="New drop"
         title="Set the rules before anyone enters."
-        body="Capacity, timing, eligibility, and confirmation policy lock at publication to prevent favorable edits after entries arrive."
+        body="Capacity, timing, allocation mode, and confirmation policy lock at publication to prevent favorable edits after entries arrive."
       />
       <form
         className="surface grid gap-6 p-7 sm:grid-cols-2 sm:p-10"
@@ -575,8 +574,6 @@ function DropEditor({ drop }: { drop: Drop }) {
 
 export function ManageDrop() {
   const { id } = useParams();
-  const [ids, setIds] = useState("");
-  const [importName, setImportName] = useState("");
   const [reason, setReason] = useState("");
   const action = useAction();
   const drop = useQuery({
@@ -603,14 +600,6 @@ export function ManageDrop() {
   });
   const command = (name: string, body: unknown = {}) =>
     action.mutate({ path: `/admin/drops/${id}/${name}`, body });
-  const inviteIds = [
-    ...new Set(
-      ids
-        .split(/[\s,]+/)
-        .map((value) => value.trim())
-        .filter(Boolean),
-    ),
-  ];
   return (
     <div className="pb-16">
       <ErrorMessage error={drop.error ?? action.error ?? metrics.error} />
@@ -630,92 +619,27 @@ export function ManageDrop() {
           <LifecycleRail phase={drop.data.phase} />
           {drop.data.phase === "DRAFT" && (
             <TicketCard className="mb-6 p-7 sm:p-9">
-              <div className="grid gap-8 lg:grid-cols-[1fr_0.7fr]">
+              <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
                 <div>
                   <div className="flex items-center gap-3">
-                    <Users className="h-6 w-6 accent" />
+                    <ShieldCheck className="h-6 w-6 accent" />
                     <h2 className="text-2xl font-semibold">
-                      Grant participant eligibility
+                      Ready to publish?
                     </h2>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed muted">
-                    Paste public account IDs or import a CSV/text file.
-                    Duplicate IDs are removed before submission.
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed muted">
+                    Every signed-in participant can enter once while the window
+                    is open. Publishing locks capacity, timing, confirmation
+                    policy, and lottery mode before entries arrive.
                   </p>
-                  <label className="mt-6 block">
-                    <span className="field-label">Public account IDs</span>
-                    <textarea
-                      className="field min-h-44 font-mono text-sm"
-                      placeholder="One public ID per line"
-                      value={ids}
-                      onChange={(e) => setIds(e.target.value)}
-                    />
-                  </label>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <button
-                      className="button"
-                      disabled={action.isPending || inviteIds.length === 0}
-                      onClick={() =>
-                        command("eligibility", {
-                          user_public_ids: inviteIds,
-                        })
-                      }
-                    >
-                      Grant {inviteIds.length || ""} invitation
-                      {inviteIds.length === 1 ? "" : "s"}
-                    </button>
-                    <label className="button-secondary cursor-pointer">
-                      <FileUp className="h-4 w-4" /> Import CSV
-                      <input
-                        className="sr-only"
-                        type="file"
-                        accept=".csv,.txt,text/csv,text/plain"
-                        onChange={async (event) => {
-                          const file = event.target.files?.[0];
-                          if (!file) return;
-                          const values = (await file.text())
-                            .split(/[\s,]+/)
-                            .map((value) => value.trim())
-                            .filter(Boolean);
-                          setIds([...new Set(values)].join("\n"));
-                          setImportName(file.name);
-                        }}
-                      />
-                    </label>
-                  </div>
-                  {importName && (
-                    <p className="mt-3 text-xs muted">Imported {importName}</p>
-                  )}
-                  <button
-                    className="button-danger mt-3"
-                    disabled={action.isPending || inviteIds.length !== 1}
-                    onClick={() =>
-                      action.mutate({
-                        path: `/admin/drops/${id}/eligibility/${encodeURIComponent(inviteIds[0] ?? "")}`,
-                        method: "DELETE",
-                      })
-                    }
-                  >
-                    Revoke selected invitation
-                  </button>
                 </div>
-                <aside className="rounded-[var(--radius-control)] border border-[rgb(var(--accent)/0.24)] bg-[rgb(var(--accent)/0.07)] p-6">
-                  <ShieldCheck className="h-7 w-7 accent" />
-                  <h3 className="mt-8 text-xl font-semibold">
-                    Ready to publish?
-                  </h3>
-                  <p className="mt-3 text-sm leading-relaxed muted">
-                    Publication locks invitations, capacity, timing,
-                    confirmation policy, and lottery mode.
-                  </p>
-                  <button
-                    className="button mt-6 w-full"
-                    disabled={action.isPending}
-                    onClick={() => command("publish")}
-                  >
-                    Publish locked drop
-                  </button>
-                </aside>
+                <button
+                  className="button min-w-56"
+                  disabled={action.isPending}
+                  onClick={() => command("publish")}
+                >
+                  Publish locked drop
+                </button>
               </div>
             </TicketCard>
           )}

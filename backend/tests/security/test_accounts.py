@@ -71,3 +71,42 @@ def test_registration_validates_public_fields(client):
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_registration_stores_face_embedding(client, db, monkeypatch):
+    embedding = [0.05] * 128
+    monkeypatch.setattr("app.security.router.extract_face_embedding", lambda _image: embedding)
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "display_name": "Verified Visitor",
+            "email": "verified@example.com",
+            "password": "correct horse battery staple",
+            "face_image": "data:image/jpeg;base64,dGVzdA==",
+        },
+        headers=ORIGIN,
+    )
+    assert response.status_code == 201, response.text
+    user = db.scalar(select(User).where(User.email == "verified@example.com"))
+    assert user.face_embedding == embedding
+
+
+def test_registration_rejects_duplicate_face(client, monkeypatch):
+    first = [0.10] * 128
+    second = [0.12] * 128
+    monkeypatch.setattr("app.security.router.extract_face_embedding", lambda _image: first)
+    payload = {
+        "display_name": "Original Visitor",
+        "email": "original-face@example.com",
+        "password": "correct horse battery staple",
+        "face_image": "data:image/jpeg;base64,Zmlyc3Q=",
+    }
+    assert client.post("/api/v1/auth/register", json=payload, headers=ORIGIN).status_code == 201
+    monkeypatch.setattr("app.security.router.extract_face_embedding", lambda _image: second)
+    duplicate = client.post(
+        "/api/v1/auth/register",
+        json={**payload, "display_name": "Second Visitor", "email": "second-face@example.com"},
+        headers=ORIGIN,
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "DUPLICATE_FACE"
