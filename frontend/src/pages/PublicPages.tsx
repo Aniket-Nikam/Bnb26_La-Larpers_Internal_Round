@@ -427,7 +427,10 @@ function FaceScanner({
         }
       } catch (err: unknown) {
         if (cancelled) return;
-        if (err instanceof Error && err.name === "AbortError") return;
+        const isAbort =
+          (err as { name?: string })?.name === "AbortError" ||
+          String(err).includes("AbortError");
+        if (isAbort) return;
         console.error("Camera access error:", err);
         const msg =
           err instanceof Error && err.name === "NotAllowedError"
@@ -454,15 +457,18 @@ function FaceScanner({
         const video = videoRef.current;
         if (!video) return;
         const canvas = canvasRef.current || document.createElement("canvas");
-        const size = Math.min(video.videoWidth || 480, video.videoHeight || 480);
-        canvas.width = size;
-        canvas.height = size;
+        const videoW = video.videoWidth || 480;
+        const videoH = video.videoHeight || 480;
+        const minDim = Math.min(videoW, videoH);
+        const targetDim = Math.min(minDim, 400);
+        canvas.width = targetDim;
+        canvas.height = targetDim;
         const ctx = canvas.getContext("2d");
         if (ctx) {
-          const sx = ((video.videoWidth || size) - size) / 2;
-          const sy = ((video.videoHeight || size) - size) / 2;
-          ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+          const sx = (videoW - minDim) / 2;
+          const sy = (videoH - minDim) / 2;
+          ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, targetDim, targetDim);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
           onChange(dataUrl);
         }
       } catch (e) {
