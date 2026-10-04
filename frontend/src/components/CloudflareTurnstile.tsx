@@ -117,11 +117,11 @@ export function CloudflareTurnstile({
   const [loadError, setLoadError] = useState(false);
   const [fallbackVerifying, setFallbackVerifying] = useState(false);
 
-  // Cloudflare official test key: 2x00000000000000000000AB forces interactive verification (checkbox)
-  // or user-provided VITE_CLOUDFLARE_SITEKEY
+  // Cloudflare official test key: 1x00000000000000000000AA always passes
+  // In production, configure VITE_CLOUDFLARE_SITEKEY in your .env
   const siteKey =
     (import.meta.env.VITE_CLOUDFLARE_SITEKEY as string | undefined) ||
-    "2x00000000000000000000AB";
+    "1x00000000000000000000AA";
 
   useEffect(() => {
     let isCancelled = false;
