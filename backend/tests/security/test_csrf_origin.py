@@ -108,3 +108,13 @@ def test_login_without_origin_header(client, test_user):
     resp = client.post("/api/v1/auth/session", json={"access_code": test_user["raw_code"]})
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "CSRF_REJECTED"
+
+
+def test_dev_origin_tolerance(client, test_user):
+    """Localhost/127.0.0.1 dev origins on dev ports are tolerated."""
+    resp = client.post(
+        "/api/v1/auth/session",
+        json={"access_code": test_user["raw_code"]},
+        headers={"Origin": "http://localhost:5173"},
+    )
+    assert resp.status_code == 200
