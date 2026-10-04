@@ -3,10 +3,8 @@
 import base64
 import io
 import re
+from math import sqrt
 
-import face_recognition
-import numpy as np
-from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +20,21 @@ def extract_face_embedding(image_data: str) -> list[float]:
             "A camera face scan is required to register an account.",
             422,
         )
+    # Keep the web API available if the optional native recognition package is
+    # absent on a developer machine.  Production installs it from pyproject;
+    # only a scan attempt needs the package, not sign-in or ticket browsing.
+    try:
+        import face_recognition
+        import numpy as np
+        from PIL import Image
+    except ImportError as exc:
+        raise DomainError(
+            "SERVICE_UNAVAILABLE",
+            "Face verification is temporarily unavailable. Please try again shortly.",
+            503,
+            retryable=True,
+        ) from exc
+
     cleaned = re.sub(r"^data:image/[a-zA-Z0-9.+-]+;base64,", "", image_data.strip())
     try:
         raw_bytes = base64.b64decode(cleaned, validate=True)
@@ -55,11 +68,17 @@ def check_duplicate_face(
 ) -> User | None:
     """Return the first existing account within the configured face distance."""
     candidates = db.scalars(select(User).where(User.face_embedding.isnot(None))).all()
-    new_vector = np.array(new_embedding, dtype=np.float64)
+    if len(new_embedding) != 128:
+        raise DomainError("VALIDATION_ERROR", "Invalid face scan received.", 422)
+
     for user in candidates:
         if not user.face_embedding:
             continue
-        existing_vector = np.array(user.face_embedding, dtype=np.float64)
-        if float(np.linalg.norm(existing_vector - new_vector)) < threshold:
+        if len(user.face_embedding) != len(new_embedding):
+            continue
+        distance = sqrt(
+            sum((float(existing) - float(new)) ** 2 for existing, new in zip(user.face_embedding, new_embedding))
+        )
+        if distance < threshold:
             return user
     return None
