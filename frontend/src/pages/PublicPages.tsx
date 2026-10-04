@@ -20,9 +20,8 @@ import {
   time,
   useAction,
   useLogin,
-  usePhoneLogin,
+  usePasswordLogin,
   useRegister,
-  useSendOtp,
   useSession,
 } from "../lib/api/client";
 import type { Drop, Entry, Page, Schema } from "../lib/api/client";
@@ -252,39 +251,12 @@ export function DropDetail() {
 export function SignInPage() {
   const [invitationMode, setInvitationMode] = useState(false);
   const [code, setCode] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [debugOtp, setDebugOtp] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const login = useLogin();
-  const phoneLogin = usePhoneLogin();
-  const sendOtp = useSendOtp();
+  const passwordLogin = usePasswordLogin();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
-
-  const handleSendOtp = () => {
-    if (!phoneNumber.trim()) return;
-    sendOtp.mutate(
-      { phone_number: phoneNumber, purpose: "login" },
-      {
-        onSuccess: (data) => {
-          setOtpSent(true);
-          setCountdown(data.cooldown_seconds || 30);
-          if (data.debug_otp) {
-            setDebugOtp(data.debug_otp);
-          }
-        },
-      },
-    );
-  };
 
   return (
     <div className="max-w-md mx-auto pt-16">
@@ -297,7 +269,7 @@ export function SignInPage() {
             type="button"
             onClick={() => setInvitationMode(false)}
           >
-            Phone OTP
+            Email &amp; Password
           </button>
           <button
             className={invitationMode ? "button" : "underline"}
@@ -314,16 +286,17 @@ export function SignInPage() {
             const options = {
               onSuccess: () => {
                 setCode("");
+                setPassword("");
                 navigate("/drops");
               },
             };
             if (invitationMode) {
               login.mutate(code, options);
             } else {
-              phoneLogin.mutate(
+              passwordLogin.mutate(
                 {
-                  phone_number: phoneNumber,
-                  otp,
+                  email: email.trim().toLowerCase(),
+                  password,
                 },
                 options,
               );
@@ -345,72 +318,45 @@ export function SignInPage() {
             </label>
           ) : (
             <>
-              <div className="space-y-2">
-                <label className="block">
-                  Phone number
-                  <div className="flex gap-2 mt-3">
-                    <input
-                      className="field flex-1"
-                      name="phone_number"
-                      type="tel"
-                      placeholder="+14155552671"
-                      autoComplete="tel"
-                      required
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="button px-4 py-2 text-xs whitespace-nowrap bg-white/10 hover:bg-white/20 border border-white/20"
-                      disabled={sendOtp.isPending || countdown > 0 || !phoneNumber.trim()}
-                      onClick={handleSendOtp}
-                    >
-                      {sendOtp.isPending
-                        ? "Sending..."
-                        : countdown > 0
-                        ? `Resend in ${countdown}s`
-                        : otpSent
-                        ? "Resend Code"
-                        : "Send OTP"}
-                    </button>
-                  </div>
-                </label>
-                {debugOtp && (
-                  <div
-                    onClick={() => setOtp(debugOtp)}
-                    className="cursor-pointer text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2 flex items-center justify-between"
-                  >
-                    <span>Test OTP: <strong>{debugOtp}</strong></span>
-                    <span className="text-[10px] underline">Click to fill</span>
-                  </div>
-                )}
-                {sendOtp.error && <ErrorMessage error={sendOtp.error} />}
-              </div>
-
               <label className="block">
-                6-digit verification code
+                Email address
                 <input
-                  className="field mt-3 text-center font-mono tracking-widest text-lg"
-                  name="otp"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  placeholder="000000"
+                  className="field mt-3"
+                  type="email"
+                  autoComplete="email"
                   required
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  maxLength={254}
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                Password
+                <input
+                  className="field mt-3"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  maxLength={128}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </label>
             </>
           )}
           <button
             className="button"
-            disabled={login.isPending || phoneLogin.isPending || (!invitationMode && otp.length !== 6)}
+            disabled={
+              login.isPending ||
+              passwordLogin.isPending ||
+              (!invitationMode && (!email.trim() || !password))
+            }
           >
-            {phoneLogin.isPending ? "Verifying..." : "Sign in"}
+            {passwordLogin.isPending || login.isPending ? "Signing in..." : "Sign in"}
           </button>
-          <ErrorMessage error={login.error ?? phoneLogin.error} />
+          <ErrorMessage error={invitationMode ? login.error : passwordLogin.error} />
         </form>
         <p>
           New visitor?{" "}
@@ -679,38 +625,13 @@ export function RegisterPage() {
   );
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceError, setFaceError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [debugOtp, setDebugOtp] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
 
   const register = useRegister();
-  const sendOtp = useSendOtp();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
-
-  const handleSendOtp = () => {
-    if (!phoneNumber.trim()) return;
-    sendOtp.mutate(
-      { phone_number: phoneNumber, purpose: "register" },
-      {
-        onSuccess: (data) => {
-          setOtpSent(true);
-          setCountdown(data.cooldown_seconds || 30);
-          if (data.debug_otp) {
-            setDebugOtp(data.debug_otp);
-          }
-        },
-      },
-    );
-  };
 
   return (
     <div className="max-w-md mx-auto pt-16">
@@ -719,6 +640,17 @@ export function RegisterPage() {
         <h1 className="text-3xl font-bold">
           Create {role === "admin" ? "admin" : role === "organizer" ? "organizer" : "visitor"} account
         </h1>
+
+        <div className="rounded-xl bg-white/5 border border-white/10 p-3.5 text-xs text-white/70 space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
+            <ShieldCheck className="w-4 h-4" />
+            <span>Anti-Sybil Uniqueness Protection</span>
+          </div>
+          <p>
+            To prevent fraud and duplicate accounts, each user must register with a unique <strong>Email</strong>, <strong>Phone Number</strong>, and <strong>Facial Identity Scan</strong>.
+          </p>
+        </div>
+
         <form
           className="space-y-6"
           onSubmit={(event) => {
@@ -730,27 +662,22 @@ export function RegisterPage() {
               );
               return;
             }
-            if (!otp || otp.length !== 6) {
-              setFaceError(
-                "Please request and enter your 6-digit phone verification OTP code.",
-              );
+            if (!phoneNumber.trim()) {
+              setFaceError("A phone number is required.");
               return;
             }
-            const fields = new FormData(event.currentTarget);
-            const selectedRole =
-              (fields.get("role") as "participant" | "organizer" | "admin") ||
-              "participant";
             register.mutate(
               {
-                display_name: String(fields.get("display_name")),
-                phone_number: phoneNumber,
-                otp,
-                role: selectedRole,
+                display_name: displayName.trim(),
+                email: email.trim().toLowerCase(),
+                phone_number: phoneNumber.trim(),
+                password,
+                role,
                 face_image: faceImage,
               },
               {
                 onSuccess: () => {
-                  if (selectedRole === "admin" || selectedRole === "organizer") {
+                  if (role === "admin" || role === "organizer") {
                     navigate("/organizer");
                   } else {
                     navigate("/profile");
@@ -783,7 +710,7 @@ export function RegisterPage() {
                 Facial Identity Scan
               </span>
               <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                1 Face = 1 Account
+                Mandatory · 1 Face = 1 Account
               </span>
             </div>
             <FaceScanner
@@ -809,85 +736,77 @@ export function RegisterPage() {
             <input
               className="field mt-3"
               name="display_name"
+              type="text"
               required
               maxLength={100}
+              placeholder="Alex Johnson"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
             />
           </label>
 
-          <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-white/70">
-              <span className="flex items-center gap-1.5">
-                <Phone className="w-4 h-4 text-emerald-400" />
-                Phone Verification
-              </span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                1 Phone = 1 Account
-              </span>
-            </div>
+          <label className="block">
+            Email address
+            <input
+              className="field mt-3"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={254}
+              placeholder="alex@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
 
-            <label className="block text-sm">
+          <label className="block">
+            <span className="flex items-center gap-1.5">
+              <Phone className="w-4 h-4 text-emerald-400" />
               Phone number
-              <div className="flex gap-2 mt-2">
-                <input
-                  className="field flex-1"
-                  name="phone_number"
-                  type="tel"
-                  placeholder="+14155552671"
-                  autoComplete="tel"
-                  required
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="button px-4 py-2 text-xs whitespace-nowrap bg-white/10 hover:bg-white/20 border border-white/20"
-                  disabled={sendOtp.isPending || countdown > 0 || !phoneNumber.trim()}
-                  onClick={handleSendOtp}
-                >
-                  {sendOtp.isPending
-                    ? "Sending..."
-                    : countdown > 0
-                    ? `Resend in ${countdown}s`
-                    : otpSent
-                    ? "Resend Code"
-                    : "Send OTP"}
-                </button>
-              </div>
-            </label>
+            </span>
+            <input
+              className="field mt-3"
+              name="phone_number"
+              type="tel"
+              placeholder="+14155552671"
+              autoComplete="tel"
+              required
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+            />
+            <span className="text-[11px] text-white/50 block mt-1">
+              Include country code (e.g. +14155552671 or +919876543210). Must be unique across all accounts.
+            </span>
+          </label>
 
-            {debugOtp && (
-              <div
-                onClick={() => setOtp(debugOtp)}
-                className="cursor-pointer text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2 flex items-center justify-between"
-              >
-                <span>Test OTP: <strong>{debugOtp}</strong></span>
-                <span className="text-[10px] underline">Click to fill</span>
-              </div>
-            )}
-            {sendOtp.error && <ErrorMessage error={sendOtp.error} />}
-
-            <label className="block text-sm">
-              6-digit verification code
-              <input
-                className="field mt-2 text-center font-mono tracking-widest text-lg"
-                name="otp"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                placeholder="000000"
-                required
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-              />
-            </label>
-          </div>
+          <label className="block">
+            Password
+            <input
+              className="field mt-3"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              maxLength={128}
+              placeholder="At least 8 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
 
           <button
             className="button"
-            disabled={register.isPending || !faceImage || otp.length !== 6}
+            disabled={
+              register.isPending ||
+              !faceImage ||
+              !phoneNumber.trim() ||
+              !email.trim() ||
+              password.length < 8
+            }
           >
-            {register.isPending ? "Verifying & Creating…" : "Create account"}
+            {register.isPending ? "Creating account…" : "Create account"}
           </button>
           <ErrorMessage error={register.error} />
         </form>

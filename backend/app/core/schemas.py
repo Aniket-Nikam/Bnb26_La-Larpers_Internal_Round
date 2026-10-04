@@ -120,13 +120,14 @@ class PhoneSessionInput(DTO):
 
 class RegistrationInput(DTO):
     display_name: str = Field(min_length=1, max_length=100)
-    phone_number: str | None = Field(default=None, min_length=8, max_length=24)
-    otp: str | None = Field(default=None, min_length=6, max_length=6)
-    email: str | None = Field(default=None, min_length=3, max_length=254)
-    password: str | None = Field(default=None, min_length=8, max_length=128)
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+    phone_number: str = Field(min_length=8, max_length=24)
     role: Literal["participant", "organizer", "admin"] = "participant"
     admin_key: str | None = None
     face_image: str | None = None
+
+    _email = field_validator("email")(_normalize_email)
 
     @field_validator("display_name")
     @classmethod
@@ -135,13 +136,6 @@ class RegistrationInput(DTO):
         if not value:
             raise ValueError("Display name cannot be blank")
         return value
-
-    @field_validator("email")
-    @classmethod
-    def optional_email(cls, value: str | None) -> str | None:
-        if value:
-            return _normalize_email(value)
-        return None
 
 
 class SessionResponse(DTO):

@@ -1302,14 +1302,12 @@ export interface components {
         RegistrationInput: {
             /** Display Name */
             display_name: string;
-            /** Phone Number */
-            phone_number?: string | null;
-            /** Otp */
-            otp?: string | null;
             /** Email */
-            email?: string | null;
+            email: string;
             /** Password */
-            password?: string | null;
+            password: string;
+            /** Phone Number */
+            phone_number: string;
             /**
              * Role
              * @default participant

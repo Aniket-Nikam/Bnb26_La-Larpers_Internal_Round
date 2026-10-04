@@ -105,27 +105,23 @@ def register(body: s.RegistrationInput, request: Request, response: Response, db
     require_origin(request)
     cfg = get_settings()
 
-    normalized_phone = None
-    if body.phone_number:
-        normalized_phone = normalize_phone_number(body.phone_number)
-        enforce_limit(request, None, "credential_attempt", _credential_digest(normalized_phone))
-        # Verify phone OTP if provided or required
-        if body.otp:
-            verify_otp(normalized_phone, "register", body.otp)
-        elif cfg.app_profile != "test":
-            raise DomainError("VALIDATION_ERROR", "A valid 6-digit OTP code is required for phone verification.", 422)
+    normalized_email = body.email.strip().lower()
+    normalized_phone = normalize_phone_number(body.phone_number)
 
-        # Unique phone lock and check
-        db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(normalized_phone, 0))))
-        if db.scalar(select(User.id).where(User.phone_number == normalized_phone)):
-            raise DomainError("PHONE_EXISTS", "An account with this phone number already exists.", 409)
-    elif body.email:
-        enforce_limit(request, None, "credential_attempt", _credential_digest(body.email))
-        db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(body.email, 0))))
-        if db.scalar(select(User.id).where(func.lower(User.email) == body.email.lower())):
-            raise DomainError("ACCOUNT_EXISTS", "An account with this email already exists.", 409)
-    else:
-        raise DomainError("VALIDATION_ERROR", "Phone number is required to register an account.", 422)
+    enforce_limit(request, None, "credential_attempt", _credential_digest(normalized_email))
+    enforce_limit(request, None, "credential_attempt", _credential_digest(normalized_phone))
+
+    # Advisory locks for concurrency protection on email and phone
+    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(normalized_email, 0))))
+    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(normalized_phone, 1))))
+
+    # 1. Email uniqueness check
+    if db.scalar(select(User.id).where(func.lower(User.email) == normalized_email)):
+        raise DomainError("ACCOUNT_EXISTS", "An account with this email already exists.", 409)
+
+    # 2. Phone uniqueness check
+    if db.scalar(select(User.id).where(User.phone_number == normalized_phone)):
+        raise DomainError("PHONE_EXISTS", "An account with this phone number already exists.", 409)
 
     if cfg.app_profile == "normal" and body.role in {"organizer", "admin"}:
         key = cfg.session_digest_key.get_secret_value()
@@ -154,7 +150,7 @@ def register(body: s.RegistrationInput, request: Request, response: Response, db
     user = User(
         display_name=body.display_name,
         phone_number=normalized_phone,
-        email=body.email,
+        email=normalized_email,
         password_hash=hash_password(body.password) if body.password else None,
         role=body.role,
         face_embedding=face_embedding,

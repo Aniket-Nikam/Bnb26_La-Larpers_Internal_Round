@@ -1,5 +1,6 @@
 import base64
 import hmac
+import json
 import logging
 import re
 import secrets
@@ -68,6 +69,46 @@ def dispatch_sms_via_twilio(to_number: str, message: str) -> bool:
         return False
     except Exception as e:
         logger.error("Twilio unexpected error when sending to %s: %s", to_number, e)
+        return False
+
+
+def dispatch_sms_via_fast2sms(to_number: str, otp: str) -> bool:
+    """Send real SMS to Indian (+91) phone numbers via Fast2SMS gateway."""
+    cfg = get_settings()
+    api_key = cfg.fast2sms_api_key.get_secret_value()
+    if not api_key:
+        return False
+
+    cleaned = re.sub(r"\D", "", to_number)
+    if cleaned.startswith("91") and len(cleaned) == 12:
+        digits = cleaned[2:]
+    elif len(cleaned) == 10:
+        digits = cleaned
+    else:
+        return False
+
+    try:
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload = json.dumps({
+            "variables_values": otp,
+            "route": "otp",
+            "numbers": digits,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "authorization": api_key,
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = resp.read().decode("utf-8", errors="replace")
+            logger.info("Fast2SMS OTP sent to %s: %s", digits, data)
+            return True
+    except Exception as e:
+        logger.error("Fast2SMS failed to send to %s: %s", digits, e)
         return False
 
 

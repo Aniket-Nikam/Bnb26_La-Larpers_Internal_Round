@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     twilio_api_key_secret: SecretStr = SecretStr("")
     twilio_auth_token: SecretStr = SecretStr("")
     twilio_phone_number: str = ""
+    fast2sms_api_key: SecretStr = SecretStr("")
 
     @model_validator(mode="after")
     def validate_profile(self):
