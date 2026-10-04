@@ -36,9 +36,13 @@ export async function api<T>(
     headers["Content-Type"] = "application/json";
     if (csrf) headers["X-CSRF-Token"] = csrf;
     if (
-      !["/auth/session", "/auth/password-session", "/auth/register"].includes(
-        path,
-      )
+      ![
+        "/auth/session",
+        "/auth/password-session",
+        "/auth/phone-session",
+        "/auth/register",
+        "/auth/otp/send",
+      ].includes(path)
     )
       headers["Idempotency-Key"] = operationKey ?? crypto.randomUUID();
   }
@@ -139,7 +143,11 @@ export function useLogin() {
   });
 }
 
-function useAccountSession(path: "/auth/password-session" | "/auth/register") {
+export type OtpSendResponse = Schema["OtpSendResponse"];
+
+function useAccountSession(
+  path: "/auth/password-session" | "/auth/phone-session" | "/auth/register",
+) {
   const cache = useQueryClient();
   return useMutation({
     mutationFn: (body: unknown) => api<Session>(path, "POST", body),
@@ -149,6 +157,17 @@ function useAccountSession(path: "/auth/password-session" | "/auth/register") {
       cache.setQueryData(["session"], session);
     },
   });
+}
+
+export function useSendOtp() {
+  return useMutation({
+    mutationFn: (body: { phone_number: string; purpose: "register" | "login" }) =>
+      api<OtpSendResponse>("/auth/otp/send", "POST", body),
+  });
+}
+
+export function usePhoneLogin() {
+  return useAccountSession("/auth/phone-session");
 }
 
 export function usePasswordLogin() {

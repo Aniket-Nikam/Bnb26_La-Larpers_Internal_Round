@@ -4,6 +4,7 @@ import {
   Camera,
   CheckCircle2,
   Lock,
+  Phone,
   RefreshCw,
   ScanFace,
   ShieldCheck,
@@ -19,8 +20,9 @@ import {
   time,
   useAction,
   useLogin,
-  usePasswordLogin,
+  usePhoneLogin,
   useRegister,
+  useSendOtp,
   useSession,
 } from "../lib/api/client";
 import type { Drop, Entry, Page, Schema } from "../lib/api/client";
@@ -250,9 +252,40 @@ export function DropDetail() {
 export function SignInPage() {
   const [invitationMode, setInvitationMode] = useState(false);
   const [code, setCode] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [debugOtp, setDebugOtp] = useState<string | null>(null);
+
   const login = useLogin();
-  const passwordLogin = usePasswordLogin();
+  const phoneLogin = usePhoneLogin();
+  const sendOtp = useSendOtp();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  const handleSendOtp = () => {
+    if (!phoneNumber.trim()) return;
+    sendOtp.mutate(
+      { phone_number: phoneNumber, purpose: "login" },
+      {
+        onSuccess: (data) => {
+          setOtpSent(true);
+          setCountdown(data.cooldown_seconds || 30);
+          if (data.debug_otp) {
+            setDebugOtp(data.debug_otp);
+          }
+        },
+      },
+    );
+  };
+
   return (
     <div className="max-w-md mx-auto pt-16">
       <TicketCard className="p-10 space-y-8">
@@ -264,7 +297,7 @@ export function SignInPage() {
             type="button"
             onClick={() => setInvitationMode(false)}
           >
-            Email
+            Phone OTP
           </button>
           <button
             className={invitationMode ? "button" : "underline"}
@@ -278,22 +311,23 @@ export function SignInPage() {
           className="space-y-6"
           onSubmit={(e) => {
             e.preventDefault();
-            const fields = new FormData(e.currentTarget);
             const options = {
               onSuccess: () => {
                 setCode("");
                 navigate("/drops");
               },
             };
-            if (invitationMode) login.mutate(code, options);
-            else
-              passwordLogin.mutate(
+            if (invitationMode) {
+              login.mutate(code, options);
+            } else {
+              phoneLogin.mutate(
                 {
-                  email: String(fields.get("email")),
-                  password: String(fields.get("password")),
+                  phone_number: phoneNumber,
+                  otp,
                 },
                 options,
               );
+            }
           }}
         >
           {invitationMode ? (
@@ -311,38 +345,72 @@ export function SignInPage() {
             </label>
           ) : (
             <>
+              <div className="space-y-2">
+                <label className="block">
+                  Phone number
+                  <div className="flex gap-2 mt-3">
+                    <input
+                      className="field flex-1"
+                      name="phone_number"
+                      type="tel"
+                      placeholder="+14155552671"
+                      autoComplete="tel"
+                      required
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="button px-4 py-2 text-xs whitespace-nowrap bg-white/10 hover:bg-white/20 border border-white/20"
+                      disabled={sendOtp.isPending || countdown > 0 || !phoneNumber.trim()}
+                      onClick={handleSendOtp}
+                    >
+                      {sendOtp.isPending
+                        ? "Sending..."
+                        : countdown > 0
+                        ? `Resend in ${countdown}s`
+                        : otpSent
+                        ? "Resend Code"
+                        : "Send OTP"}
+                    </button>
+                  </div>
+                </label>
+                {debugOtp && (
+                  <div
+                    onClick={() => setOtp(debugOtp)}
+                    className="cursor-pointer text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2 flex items-center justify-between"
+                  >
+                    <span>Test OTP: <strong>{debugOtp}</strong></span>
+                    <span className="text-[10px] underline">Click to fill</span>
+                  </div>
+                )}
+                {sendOtp.error && <ErrorMessage error={sendOtp.error} />}
+              </div>
+
               <label className="block">
-                Email
+                6-digit verification code
                 <input
-                  className="field mt-3"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  className="field mt-3 text-center font-mono tracking-widest text-lg"
+                  name="otp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="000000"
                   required
-                  maxLength={254}
-                />
-              </label>
-              <label className="block">
-                Password
-                <input
-                  className="field mt-3"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  minLength={8}
-                  maxLength={128}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                 />
               </label>
             </>
           )}
           <button
             className="button"
-            disabled={login.isPending || passwordLogin.isPending}
+            disabled={login.isPending || phoneLogin.isPending || (!invitationMode && otp.length !== 6)}
           >
-            Sign in
+            {phoneLogin.isPending ? "Verifying..." : "Sign in"}
           </button>
-          <ErrorMessage error={login.error ?? passwordLogin.error} />
+          <ErrorMessage error={login.error ?? phoneLogin.error} />
         </form>
         <p>
           New visitor?{" "}
@@ -611,8 +679,39 @@ export function RegisterPage() {
   );
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceError, setFaceError] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [debugOtp, setDebugOtp] = useState<string | null>(null);
+
   const register = useRegister();
+  const sendOtp = useSendOtp();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  const handleSendOtp = () => {
+    if (!phoneNumber.trim()) return;
+    sendOtp.mutate(
+      { phone_number: phoneNumber, purpose: "register" },
+      {
+        onSuccess: (data) => {
+          setOtpSent(true);
+          setCountdown(data.cooldown_seconds || 30);
+          if (data.debug_otp) {
+            setDebugOtp(data.debug_otp);
+          }
+        },
+      },
+    );
+  };
+
   return (
     <div className="max-w-md mx-auto pt-16">
       <TicketCard className="p-10 space-y-8">
@@ -631,6 +730,12 @@ export function RegisterPage() {
               );
               return;
             }
+            if (!otp || otp.length !== 6) {
+              setFaceError(
+                "Please request and enter your 6-digit phone verification OTP code.",
+              );
+              return;
+            }
             const fields = new FormData(event.currentTarget);
             const selectedRole =
               (fields.get("role") as "participant" | "organizer" | "admin") ||
@@ -638,8 +743,8 @@ export function RegisterPage() {
             register.mutate(
               {
                 display_name: String(fields.get("display_name")),
-                email: String(fields.get("email")),
-                password: String(fields.get("password")),
+                phone_number: phoneNumber,
+                otp,
                 role: selectedRole,
                 face_image: faceImage,
               },
@@ -708,31 +813,81 @@ export function RegisterPage() {
               maxLength={100}
             />
           </label>
-          <label className="block">
-            Email
-            <input
-              className="field mt-3"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              maxLength={254}
-            />
-          </label>
-          <label className="block">
-            Password
-            <input
-              className="field mt-3"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              maxLength={128}
-            />
-          </label>
-          <button className="button" disabled={register.isPending}>
-            {register.isPending ? "Verifying Face & Creating…" : "Create account"}
+
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-white/70">
+              <span className="flex items-center gap-1.5">
+                <Phone className="w-4 h-4 text-emerald-400" />
+                Phone Verification
+              </span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                1 Phone = 1 Account
+              </span>
+            </div>
+
+            <label className="block text-sm">
+              Phone number
+              <div className="flex gap-2 mt-2">
+                <input
+                  className="field flex-1"
+                  name="phone_number"
+                  type="tel"
+                  placeholder="+14155552671"
+                  autoComplete="tel"
+                  required
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="button px-4 py-2 text-xs whitespace-nowrap bg-white/10 hover:bg-white/20 border border-white/20"
+                  disabled={sendOtp.isPending || countdown > 0 || !phoneNumber.trim()}
+                  onClick={handleSendOtp}
+                >
+                  {sendOtp.isPending
+                    ? "Sending..."
+                    : countdown > 0
+                    ? `Resend in ${countdown}s`
+                    : otpSent
+                    ? "Resend Code"
+                    : "Send OTP"}
+                </button>
+              </div>
+            </label>
+
+            {debugOtp && (
+              <div
+                onClick={() => setOtp(debugOtp)}
+                className="cursor-pointer text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2 flex items-center justify-between"
+              >
+                <span>Test OTP: <strong>{debugOtp}</strong></span>
+                <span className="text-[10px] underline">Click to fill</span>
+              </div>
+            )}
+            {sendOtp.error && <ErrorMessage error={sendOtp.error} />}
+
+            <label className="block text-sm">
+              6-digit verification code
+              <input
+                className="field mt-2 text-center font-mono tracking-widest text-lg"
+                name="otp"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="000000"
+                required
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              />
+            </label>
+          </div>
+
+          <button
+            className="button"
+            disabled={register.isPending || !faceImage || otp.length !== 6}
+          >
+            {register.isPending ? "Verifying & Creating…" : "Create account"}
           </button>
           <ErrorMessage error={register.error} />
         </form>

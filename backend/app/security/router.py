@@ -13,11 +13,12 @@ from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.core.idempotency import claim, complete
 from app.persistence.database import get_db
-from app.persistence.models import User
+from app.persistence.models import AccessCredential, User
 from app.security.authorization import get_principal
 from app.security.csrf import generate_csrf_token, require_csrf, require_origin
 from app.security.face import check_duplicate_face, extract_face_embedding
 from app.security.limits import enforce_limit
+from app.security.otp import normalize_phone_number, send_otp, verify_otp
 from app.security.passwords import hash_password, verify_account
 from app.security.provisioning import _credential_digest, provision_credential, verify_credential
 from app.security.sessions import (
@@ -55,6 +56,36 @@ def login(body: s.SessionInput, request: Request, response: Response, db: DB):
     return projection(db, session)
 
 
+@router.post("/auth/otp/send", response_model=s.OtpSendResponse)
+def send_phone_otp(body: s.OtpSendInput, request: Request, db: DB):
+    require_origin(request)
+    normalized = normalize_phone_number(body.phone_number)
+    enforce_limit(request, None, "credential_attempt", _credential_digest(normalized))
+    return s.OtpSendResponse(**send_otp(db, normalized, body.purpose))
+
+
+@router.post("/auth/phone-session", response_model=s.SessionResponse)
+def phone_login(body: s.PhoneSessionInput, request: Request, response: Response, db: DB):
+    require_origin(request)
+    normalized = normalize_phone_number(body.phone_number)
+    enforce_limit(request, None, "credential_attempt", _credential_digest(normalized))
+    verify_otp(normalized, "login", body.otp)
+    user = db.scalar(select(User).where(User.phone_number == normalized))
+    if user is None:
+        raise DomainError("ACCOUNT_NOT_FOUND", "No account found with this phone number. Please register first.", 404)
+    credential = db.scalar(
+        select(AccessCredential).where(AccessCredential.user_id == user.id).limit(1)
+    )
+    if credential is None:
+        credential = provision_credential(
+            db, user.id, secrets.token_urlsafe(32), label="phone-otp-session"
+        )
+    raw, session = create_session(db, user.id, credential.id)
+    db.commit()
+    set_session_cookie(response, raw)
+    return projection(db, session)
+
+
 @router.post("/auth/password-session", response_model=s.SessionResponse)
 def password_login(body: s.PasswordSessionInput, request: Request, response: Response, db: DB):
     require_origin(request)
@@ -72,19 +103,37 @@ def password_login(body: s.PasswordSessionInput, request: Request, response: Res
 @router.post("/auth/register", response_model=s.SessionResponse, status_code=201)
 def register(body: s.RegistrationInput, request: Request, response: Response, db: DB):
     require_origin(request)
-    enforce_limit(request, None, "credential_attempt", _credential_digest(body.email))
-    # Serialize only registrations for the same normalized email so concurrent
-    # submissions return the same stable conflict instead of a unique-key race.
-    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(body.email, 0))))
-    if db.scalar(select(User.id).where(func.lower(User.email) == body.email)):
-        raise DomainError("ACCOUNT_EXISTS", "An account with this email already exists.", 409)
     cfg = get_settings()
+
+    normalized_phone = None
+    if body.phone_number:
+        normalized_phone = normalize_phone_number(body.phone_number)
+        enforce_limit(request, None, "credential_attempt", _credential_digest(normalized_phone))
+        # Verify phone OTP if provided or required
+        if body.otp:
+            verify_otp(normalized_phone, "register", body.otp)
+        elif cfg.app_profile != "test":
+            raise DomainError("VALIDATION_ERROR", "A valid 6-digit OTP code is required for phone verification.", 422)
+
+        # Unique phone lock and check
+        db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(normalized_phone, 0))))
+        if db.scalar(select(User.id).where(User.phone_number == normalized_phone)):
+            raise DomainError("PHONE_EXISTS", "An account with this phone number already exists.", 409)
+    elif body.email:
+        enforce_limit(request, None, "credential_attempt", _credential_digest(body.email))
+        db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(body.email, 0))))
+        if db.scalar(select(User.id).where(func.lower(User.email) == body.email.lower())):
+            raise DomainError("ACCOUNT_EXISTS", "An account with this email already exists.", 409)
+    else:
+        raise DomainError("VALIDATION_ERROR", "Phone number is required to register an account.", 422)
+
     if cfg.app_profile == "normal" and body.role in {"organizer", "admin"}:
         key = cfg.session_digest_key.get_secret_value()
         if not body.admin_key or body.admin_key != key:
             raise DomainError(
                 "FORBIDDEN", "Admin registration requires a valid admin key in production.", 403
             )
+
     face_embedding = None
     if body.face_image:
         face_embedding = extract_face_embedding(body.face_image)
@@ -104,8 +153,9 @@ def register(body: s.RegistrationInput, request: Request, response: Response, db
 
     user = User(
         display_name=body.display_name,
+        phone_number=normalized_phone,
         email=body.email,
-        password_hash=hash_password(body.password),
+        password_hash=hash_password(body.password) if body.password else None,
         role=body.role,
         face_embedding=face_embedding,
     )

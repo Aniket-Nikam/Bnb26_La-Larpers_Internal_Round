@@ -40,6 +40,7 @@ class User(Identity, Base):
     __tablename__ = "users"
     public_id: Mapped[str] = mapped_column(String(64), unique=True, default=public_id)
     display_name: Mapped[str] = mapped_column(String(100))
+    phone_number: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
     email: Mapped[str | None] = mapped_column(String(254))
     password_hash: Mapped[str | None] = mapped_column(String(256))
     timezone: Mapped[str] = mapped_column(String(100), default="UTC")
@@ -48,6 +49,7 @@ class User(Identity, Base):
     __table_args__ = (
         CheckConstraint("role IN ('participant','organizer','admin')"),
         Index("uq_users_email_lower", func.lower(email), unique=True),
+        Index("uq_users_phone_number", phone_number, unique=True),
     )
 
 
