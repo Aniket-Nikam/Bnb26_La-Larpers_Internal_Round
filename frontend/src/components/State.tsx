@@ -7,9 +7,9 @@ export function ErrorMessage({ error }: { error: unknown }) {
   return (
     <div
       role="alert"
-      className="flex items-start gap-3 rounded-[var(--radius-control)] border border-red-400/30 bg-red-400/[0.06] p-4 text-sm text-red-200"
+      className="flex items-start gap-3 rounded-[var(--radius-control)] border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-200"
     >
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
       <p>
         {error instanceof Error ? error.message : "Unable to load this view."}
         {error instanceof ApiError && error.retryAfter

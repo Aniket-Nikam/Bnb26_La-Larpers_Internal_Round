@@ -37,6 +37,7 @@ import {
 import { ErrorMessage } from "../components/State";
 import { api, time, useAction, useSession } from "../lib/api/client";
 import type { Drop, Page, Schema } from "../lib/api/client";
+import { useTheme } from "../lib/theme";
 
 const lifecycle = [
   ["DRAFT", "Rules editable"],
@@ -64,10 +65,10 @@ function LifecycleRail({ phase }: { phase: string }) {
                     className={
                       "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold " +
                       (active
-                        ? "border-[rgb(var(--accent))] bg-[rgb(var(--accent))] text-[rgb(var(--canvas))]"
+                        ? "border-[rgb(var(--accent))] bg-[rgb(var(--accent))] text-white dark:text-[rgb(var(--canvas))]"
                         : reached
                           ? "border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--accent)/0.12)] accent"
-                          : "border-white/10 bg-white/[0.025] muted")
+                          : "border-[rgb(var(--line)/0.12)] bg-[rgb(var(--line)/0.04)] muted")
                     }
                   >
                     {index + 1}
@@ -78,7 +79,7 @@ function LifecycleRail({ phase }: { phase: string }) {
                         "h-px flex-1 " +
                         (current > index
                           ? "bg-[rgb(var(--accent)/0.55)]"
-                          : "bg-white/10")
+                          : "bg-[rgb(var(--line)/0.1)]")
                       }
                     />
                   )}
@@ -91,7 +92,7 @@ function LifecycleRail({ phase }: { phase: string }) {
         })}
       </div>
       {phase === "CANCELLED" && (
-        <p className="mt-5 text-sm text-red-200">
+        <p className="mt-5 text-sm text-red-700 dark:text-red-200">
           This drop was cancelled before allocation completed.
         </p>
       )}
@@ -205,7 +206,7 @@ export function OrganizerDashboard() {
                   abusive request volume without becoming the ticket ledger.
                 </p>
               </div>
-              <div className="rounded-[var(--radius-control)] border border-white/10 bg-black/20 p-6">
+              <div className="rounded-[var(--radius-control)] border border-[rgb(var(--line)/0.1)] bg-[rgb(var(--line)/0.04)] p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.16em] muted">
@@ -222,7 +223,7 @@ export function OrganizerDashboard() {
                 </p>
               </div>
             </div>
-            <div className="relative mt-9 grid grid-cols-2 gap-x-6 border-t border-white/10 md:grid-cols-4">
+            <div className="relative mt-9 grid grid-cols-2 gap-x-6 border-t border-[rgb(var(--line)/0.1)] md:grid-cols-4">
               <Metric label="Durable entries" value={totals.entries} />
               <Metric label="Active offers" value={totals.offers} />
               <Metric label="Confirmed seats" value={totals.confirmed} />
@@ -324,7 +325,7 @@ export function OrganizerDashboard() {
               {d.capacity} seats,{" "}
               {d.mode === "LOTTERY" ? "fair lottery" : "FCFS demo"}
             </p>
-            <div className="mt-7 flex items-center justify-between border-t border-white/10 pt-5 text-sm">
+            <div className="mt-7 flex items-center justify-between border-t border-[rgb(var(--line)/0.1)] pt-5 text-sm">
               <span className="flex items-center gap-2 muted">
                 <CalendarDays className="h-4 w-4" />
                 {time(d.starts_at)}
@@ -460,7 +461,7 @@ export function CreateDrop() {
             required
           />
         </label>
-        <div className="sm:col-span-2 flex flex-wrap items-center gap-4 border-t border-white/10 pt-6">
+        <div className="sm:col-span-2 flex flex-wrap items-center gap-4 border-t border-[rgb(var(--line)/0.1)] pt-6">
           <button className="button" disabled={action.isPending}>
             {action.isPending ? "Saving draft..." : "Save secure draft"}
           </button>
@@ -704,7 +705,7 @@ export function ManageDrop() {
                     : "Investigation required"}
                 </span>
               </div>
-              <div className="mt-7 grid grid-cols-2 gap-x-6 border-t border-white/10 md:grid-cols-4">
+              <div className="mt-7 grid grid-cols-2 gap-x-6 border-t border-[rgb(var(--line)/0.1)] md:grid-cols-4">
                 <Metric
                   label="Accepted entries"
                   value={metrics.data.entered_count}
@@ -735,7 +736,7 @@ export function ManageDrop() {
           )}
           {!["COMPLETED", "CANCELLED"].includes(drop.data.phase) && (
             <details className="surface-soft mb-8 p-6">
-              <summary className="cursor-pointer font-semibold text-red-200">
+              <summary className="cursor-pointer font-semibold text-red-700 dark:text-red-200">
                 Cancellation controls
               </summary>
               <form
@@ -770,7 +771,7 @@ export function ManageDrop() {
                 {entries.data?.items.slice(0, 8).map((entry) => (
                   <div
                     key={entry.entry_id}
-                    className="grid gap-2 rounded-[var(--radius-control)] bg-white/[0.035] p-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                    className="grid gap-2 rounded-[var(--radius-control)] bg-[rgb(var(--line)/0.04)] p-4 sm:grid-cols-[1fr_auto] sm:items-center"
                   >
                     <p className="truncate font-mono text-xs muted">
                       {entry.public_entry_id}
@@ -828,6 +829,14 @@ export function AttackLab() {
   const [runId, setRunId] = useState<string | null>(null);
   const action = useAction<Schema["RunAccepted"]>();
   const stop = useAction();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
+  const chartTickColor = isLight ? "#475467" : "#a6aa9e";
+  const chartBarFill = isLight ? "#15803d" : "#c9ff4a";
+  const chartTooltipBg = isLight ? "#ffffff" : "#171915";
+  const chartTooltipBorder = isLight ? "rgba(15,23,42,0.12)" : "rgba(255,255,255,0.12)";
+  const chartTooltipColor = isLight ? "#0f172a" : "#e8ead4";
+  const chartCursorFill = isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.04)";
   const health = useQuery({
     queryKey: ["health"],
     queryFn: async () =>
@@ -909,7 +918,7 @@ export function AttackLab() {
                 </div>
               </div>
             </div>
-            <aside className="rounded-[var(--radius-control)] border border-white/10 bg-black/20 p-6">
+            <aside className="rounded-[var(--radius-control)] border border-[rgb(var(--line)/0.1)] bg-[rgb(var(--line)/0.04)] p-6">
               <p className="text-sm font-semibold accent">Enable measured runs</p>
               <ol className="mt-5 space-y-4 text-sm muted">
                 <li className="flex gap-3">
@@ -1062,7 +1071,7 @@ export function AttackLab() {
                 </button>
               )}
               {report && (
-                <div className="mt-8 space-y-6 border-t border-white/10 pt-8">
+                <div className="mt-8 space-y-6 border-t border-[rgb(var(--line)/0.1)] pt-8">
                   <div className="grid grid-cols-2 gap-x-5 md:grid-cols-4">
                     <Metric
                       label="Achieved RPS"
@@ -1154,27 +1163,28 @@ export function AttackLab() {
                               dataKey="cohort"
                               axisLine={false}
                               tickLine={false}
-                              tick={{ fill: "#a6aa9e", fontSize: 12 }}
+                              tick={{ fill: chartTickColor, fontSize: 12 }}
                             />
                             <YAxis
                               domain={[0, 100]}
                               unit="%"
                               axisLine={false}
                               tickLine={false}
-                              tick={{ fill: "#a6aa9e", fontSize: 12 }}
+                              tick={{ fill: chartTickColor, fontSize: 12 }}
                             />
                             <Tooltip
-                              cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                              cursor={{ fill: chartCursorFill }}
                               contentStyle={{
-                                background: "#171915",
-                                border: "1px solid rgba(255,255,255,0.12)",
+                                background: chartTooltipBg,
+                                border: `1px solid ${chartTooltipBorder}`,
                                 borderRadius: 14,
+                                color: chartTooltipColor,
                               }}
                               formatter={(value) => [`${value}%`, "Offer rate"]}
                             />
                             <Bar
                               dataKey="rate"
-                              fill="#c9ff4a"
+                              fill={chartBarFill}
                               radius={[8, 8, 0, 0]}
                             />
                           </BarChart>
@@ -1183,7 +1193,7 @@ export function AttackLab() {
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         {offerData.map((cohort) => (
                           <div
-                            className="rounded-[var(--radius-control)] border border-white/8 bg-black/10 px-4 py-3"
+                            className="rounded-[var(--radius-control)] border border-[rgb(var(--line)/0.1)] bg-[rgb(var(--line)/0.05)] px-4 py-3"
                             key={cohort.cohort}
                           >
                             <p className="text-xs muted">{cohort.cohort}</p>
@@ -1244,7 +1254,7 @@ export function AttackLab() {
                         <li key={limitation}>- {limitation}</li>
                       ))}
                     </ul>
-                    <pre className="mt-6 max-h-96 overflow-auto rounded-[var(--radius-control)] bg-black/20 p-4 text-xs muted">
+                    <pre className="mt-6 max-h-96 overflow-auto rounded-[var(--radius-control)] bg-[rgb(var(--line)/0.06)] p-4 text-xs muted">
                       {JSON.stringify(report, null, 2)}
                     </pre>
                   </details>
@@ -1257,7 +1267,7 @@ export function AttackLab() {
             <div className="mt-5 space-y-2">
               {runs.data?.items.map((item) => (
                 <button
-                  className="flex w-full items-center justify-between gap-4 rounded-[var(--radius-control)] border border-white/8 bg-white/[0.025] p-4 text-left transition-colors hover:bg-white/[0.05]"
+                  className="flex w-full items-center justify-between gap-4 rounded-[var(--radius-control)] border border-[rgb(var(--line)/0.1)] bg-[rgb(var(--line)/0.03)] p-4 text-left transition-colors hover:bg-[rgb(var(--line)/0.07)]"
                   key={item.run_id}
                   onClick={() => setRunId(item.run_id)}
                 >

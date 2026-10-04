@@ -29,13 +29,13 @@
   :root[data-theme="light"],
   html.light {
     color-scheme: light;
-    --canvas: 246 247 244;
+    --canvas: 248 250 252;
     --surface: 255 255 255;
-    --surface-high: 238 240 234;
-    --line: 20 22 18;
-    --ink: 18 20 16;
-    --muted: 102 108 96;
-    --accent: 96 148 18;
+    --surface-high: 241 245 249;
+    --line: 15 23 42;
+    --ink: 15 23 42;
+    --muted: 71 85 105;
+    --accent: 21 128 61;
     --danger: 220 38 38;
     --radius-panel: 28px;
     --radius-control: 14px;
@@ -134,6 +134,16 @@
     border: 1px solid rgb(var(--line) / 0.1);
     border-radius: var(--radius-panel);
     background:
+      linear-gradient(145deg, rgb(var(--line) / 0.03), transparent 45%),
+      rgb(var(--surface));
+    box-shadow:
+      0 1px 3px rgb(0 0 0 / 0.04),
+      0 14px 36px rgb(0 0 0 / 0.04);
+  }
+
+  html.dark .surface,
+  :root[data-theme="dark"] .surface {
+    background:
       linear-gradient(145deg, rgb(var(--line) / 0.035), transparent 45%),
       rgb(var(--surface));
     box-shadow:
@@ -142,31 +152,58 @@
   }
 
   .surface-soft {
-    border: 1px solid rgb(var(--line) / 0.08);
+    border: 1px solid rgb(var(--line) / 0.09);
     border-radius: var(--radius-panel);
+    background: rgb(var(--surface));
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.03);
+  }
+
+  html.dark .surface-soft,
+  :root[data-theme="dark"] .surface-soft {
     background: rgb(var(--surface) / 0.72);
+    box-shadow: none;
   }
 
   .button {
     @apply inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
     background: rgb(var(--accent));
+    color: #ffffff;
+  }
+
+  html.dark .button,
+  :root[data-theme="dark"] .button {
     color: rgb(var(--canvas));
   }
 
   .button:hover:not(:disabled) {
-    background: rgb(210 238 119);
+    background: rgb(16 110 52);
     transform: translateY(-1px);
+  }
+
+  html.dark .button:hover:not(:disabled),
+  :root[data-theme="dark"] .button:hover:not(:disabled) {
+    background: rgb(210 238 119);
   }
 
   .button-secondary {
     @apply button;
+    border: 1px solid rgb(var(--line) / 0.14);
+    background: rgb(var(--surface-high));
+    color: rgb(var(--ink));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  html.dark .button-secondary,
+  :root[data-theme="dark"] .button-secondary {
     border: 1px solid rgb(var(--line) / 0.16);
     background: rgb(var(--line) / 0.055);
     color: rgb(var(--ink));
+    box-shadow: none;
   }
 
   .button-secondary:hover:not(:disabled) {
     background: rgb(var(--line) / 0.1);
+    color: rgb(var(--ink));
   }
 
   .button-ghost {
@@ -185,22 +222,35 @@
     color: rgb(var(--danger));
   }
 
+  .button-danger:hover:not(:disabled) {
+    background: rgb(var(--danger) / 0.1);
+    color: rgb(var(--danger));
+  }
+
   .field {
     @apply w-full px-4 py-3 text-base outline-none transition duration-200;
     min-height: 48px;
-    border: 1px solid rgb(var(--line) / 0.14);
+    border: 1px solid rgb(var(--line) / 0.16);
     border-radius: var(--radius-control);
-    background: rgb(var(--canvas) / 0.62);
+    background: rgb(var(--surface));
     color: rgb(var(--ink));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  }
+
+  html.dark .field,
+  :root[data-theme="dark"] .field {
+    border: 1px solid rgb(var(--line) / 0.14);
+    background: rgb(var(--canvas) / 0.62);
+    box-shadow: none;
   }
 
   .field:hover {
-    border-color: rgb(var(--line) / 0.24);
+    border-color: rgb(var(--line) / 0.28);
   }
 
   .field:focus {
-    border-color: rgb(var(--accent) / 0.85);
-    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.11);
+    border-color: rgb(var(--accent));
+    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.15);
   }
 
   textarea.field {
@@ -210,16 +260,17 @@
 
   .field-label {
     @apply mb-2 block text-sm font-semibold;
-    color: rgb(var(--ink) / 0.86);
+    color: rgb(var(--ink) / 0.9);
   }
 
   .eyebrow {
-    @apply text-[11px] font-bold uppercase tracking-[0.18em];
+    @apply text-[11px] font-extrabold uppercase tracking-[0.18em];
     color: rgb(var(--accent));
   }
 
   .page-title {
     @apply text-4xl font-semibold leading-[0.98] tracking-[-0.045em] sm:text-5xl lg:text-6xl;
+    color: rgb(var(--ink));
   }
 
   .muted {
@@ -232,26 +283,27 @@
 
   .status-badge {
     @apply inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold tracking-wide;
-    border: 1px solid rgb(var(--line) / 0.11);
+    border: 1px solid rgb(var(--line) / 0.12);
     background: rgb(var(--line) / 0.05);
     color: rgb(var(--muted));
   }
 
   .status-badge[data-tone="active"],
   .status-badge[data-tone="success"] {
-    border-color: rgb(var(--accent) / 0.28);
+    border-color: rgb(var(--accent) / 0.3);
     background: rgb(var(--accent) / 0.1);
     color: rgb(var(--accent));
   }
 
   .status-badge[data-tone="danger"] {
-    border-color: rgb(var(--danger) / 0.28);
-    background: rgb(var(--danger) / 0.08);
+    border-color: rgb(var(--danger) / 0.3);
+    background: rgb(var(--danger) / 0.1);
     color: rgb(var(--danger));
   }
 
   .metric-number {
     @apply font-mono text-3xl font-semibold tracking-[-0.04em] sm:text-4xl;
+    color: rgb(var(--ink));
   }
 
   .mono {
@@ -260,16 +312,18 @@
 
   .skeleton {
     border-radius: var(--radius-control);
-    background: rgb(var(--line) / 0.07);
+    background: rgb(var(--line) / 0.08);
   }
 
   .link {
-    @apply font-semibold underline decoration-white/25 underline-offset-4 transition;
+    @apply font-semibold underline underline-offset-4 transition;
+    color: rgb(var(--ink));
+    text-decoration-color: rgb(var(--line) / 0.25);
   }
 
   .link:hover {
     color: rgb(var(--accent));
-    text-decoration-color: rgb(var(--accent) / 0.65);
+    text-decoration-color: rgb(var(--accent) / 0.7);
   }
 
   .no-scrollbar {
@@ -280,52 +334,14 @@
     display: none;
   }
 
-  /* Light mode refinements */
-  html.light .surface,
-  :root[data-theme="light"] .surface {
-    background: rgb(var(--surface));
-    box-shadow:
-      0 1px 3px rgb(0 0 0 / 0.05),
-      0 14px 36px rgb(0 0 0 / 0.04);
-  }
-
-  html.light .surface-soft,
-  :root[data-theme="light"] .surface-soft {
-    background: rgb(var(--surface));
-    border-color: rgb(var(--line) / 0.09);
-  }
-
-  html.light .button {
-    color: #ffffff;
-  }
-
-  html.light .button:hover:not(:disabled) {
-    background: rgb(80 126 14);
-  }
-
-  html.light .field {
-    background: rgb(255 255 255);
-  }
-
   html.light select option {
-    background: rgb(255 255 255);
+    background: #ffffff;
     color: rgb(var(--ink));
   }
 
   html.light ::selection {
-    background: rgb(var(--accent) / 0.2);
+    background: rgb(var(--accent) / 0.25);
     color: rgb(var(--ink));
-  }
-
-  /* Adapt legacy white-opacity utilities seamlessly in light mode */
-  html.light [class*="border-white/"] {
-    border-color: rgb(var(--line) / 0.1) !important;
-  }
-  html.light [class*="bg-white/"] {
-    background-color: rgb(var(--line) / 0.04) !important;
-  }
-  html.light [class*="bg-black/"] {
-    background-color: rgb(var(--line) / 0.04) !important;
   }
 }
 

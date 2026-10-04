@@ -50,7 +50,7 @@ const phases = ["ALL", "SCHEDULED", "OPEN", "OFFERING", "COMPLETED"] as const;
 function DropCard({ drop }: { drop: Schema["DropSummary"] }) {
   return (
     <Link className="group block" to={"/drops/" + drop.id}>
-      <article className="surface-soft h-full overflow-hidden p-6 transition duration-300 group-hover:-translate-y-1 group-hover:border-white/20 sm:p-8">
+      <article className="surface-soft h-full overflow-hidden p-6 transition duration-300 group-hover:-translate-y-1 group-hover:border-[rgb(var(--line)/0.25)] sm:p-8">
         <div className="flex items-start justify-between gap-5">
           <StatusBadge value={drop.phase} />
           <Ticket className="h-5 w-5 accent" strokeWidth={1.7} />
@@ -59,7 +59,7 @@ function DropCard({ drop }: { drop: Schema["DropSummary"] }) {
           {drop.title}
         </h3>
         <p className="mt-3 text-sm muted">{drop.organizer.display_name}</p>
-        <div className="mt-8 grid grid-cols-2 gap-5 border-t border-white/10 pt-6 text-sm">
+        <div className="mt-8 grid grid-cols-2 gap-5 border-t border-[rgb(var(--line)/0.1)] pt-6 text-sm">
           <div>
             <p className="muted">Seats</p>
             <p className="mt-1 font-mono text-lg">{drop.capacity}</p>
@@ -228,7 +228,7 @@ export function LandingPage() {
             alt="A crowd represented as equal identities with selected seats highlighted"
             fetchPriority="high"
           />
-          <figcaption className="absolute inset-x-4 bottom-4 rounded-[var(--radius-control)] border border-white/15 bg-[rgb(var(--canvas)/0.82)] p-4 backdrop-blur-xl">
+          <figcaption className="absolute inset-x-4 bottom-4 rounded-[var(--radius-control)] border border-[rgb(var(--line)/0.12)] bg-[rgb(var(--surface)/0.9)] p-4 shadow-lg backdrop-blur-xl">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 accent" />
               <div>
@@ -244,7 +244,7 @@ export function LandingPage() {
         </motion.figure>
       </section>
 
-      <section className="grid border-y border-white/10 py-7 sm:grid-cols-3">
+      <section className="grid border-y border-[rgb(var(--line)/0.1)] py-7 sm:grid-cols-3">
         <Metric label="Entry policy" value="One per identity" />
         <Metric label="Seat integrity" value="No overselling" />
         <Metric label="Public trust" value="Reproducible proof" />
@@ -528,7 +528,7 @@ function SavedEntry({ entry }: { entry: Entry }) {
           </button>
         </div>
       )}
-      <div className="grid gap-4 border-t border-white/10 pt-5 sm:grid-cols-2">
+      <div className="grid gap-4 border-t border-[rgb(var(--line)/0.1)] pt-5 sm:grid-cols-2">
         <div>
           <p className="text-xs muted">Receipt ID</p>
           <p className="mt-1 break-all font-mono text-sm">{entry.receipt_id}</p>
@@ -742,7 +742,7 @@ export function DropDetail() {
             </div>
           )}
           <ErrorMessage error={state.error ?? action.error ?? session.error} />
-          <div className="mt-8 border-t border-white/10 pt-6">
+          <div className="mt-8 border-t border-[rgb(var(--line)/0.1)] pt-6">
             <Link className="link" to={"/drops/" + id + "/proof"}>
               Inspect the draw proof
             </Link>
@@ -755,7 +755,7 @@ export function DropDetail() {
         </div>
       </TicketCard>
       {d.cancellation_reason && (
-        <div className="mt-5 rounded-[var(--radius-control)] border border-red-400/30 bg-red-400/[0.06] p-5 text-red-200">
+        <div className="mt-5 rounded-[var(--radius-control)] border border-red-500/25 bg-red-500/10 p-5 text-red-700 dark:text-red-200">
           {d.cancellation_reason}
         </div>
       )}
@@ -807,7 +807,7 @@ export function SignInPage() {
         <p className="mt-3 muted">
           Use your account or a private invitation credential.
         </p>
-        <div className="mt-8 inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1">
+        <div className="mt-8 inline-flex rounded-full border border-[rgb(var(--line)/0.1)] bg-[rgb(var(--line)/0.04)] p-1">
           <button
             className={
               !invitationMode
@@ -1032,9 +1032,9 @@ function FaceScanner({
   };
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-control)] border border-white/10 bg-white/[0.025]">
+    <div className="overflow-hidden rounded-[var(--radius-control)] border border-[rgb(var(--line)/0.12)] bg-[rgb(var(--surface-high))]">
       <div className="grid gap-0 sm:grid-cols-[minmax(0,1fr)_13rem]">
-        <div className="relative aspect-[4/3] overflow-hidden bg-black/30">
+        <div className="relative aspect-[4/3] overflow-hidden bg-[rgb(var(--line)/0.08)]">
           {value ? (
             <img
               alt="Captured face verification preview"
@@ -1061,8 +1061,8 @@ function FaceScanner({
           {!value && cameraError && (
             <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--canvas)/0.94)] p-6 text-center">
               <div>
-                <Camera className="mx-auto h-7 w-7 text-red-300" />
-                <p className="mt-3 text-sm text-red-200" role="alert">
+                <Camera className="mx-auto h-7 w-7 text-red-500 dark:text-red-300" />
+                <p className="mt-3 text-sm text-red-700 dark:text-red-200" role="alert">
                   {cameraError}
                 </p>
               </div>
@@ -1070,7 +1070,7 @@ function FaceScanner({
           )}
           <div className="pointer-events-none absolute inset-[12%] rounded-[42%] border border-[rgb(var(--accent)/0.55)]" />
         </div>
-        <div className="flex flex-col justify-between border-t border-white/10 p-5 sm:border-l sm:border-t-0">
+        <div className="flex flex-col justify-between border-t border-[rgb(var(--line)/0.1)] p-5 sm:border-l sm:border-t-0">
           <div>
             <ScanFace className="h-6 w-6 accent" />
             <p className="mt-4 font-semibold">
@@ -1137,7 +1137,7 @@ export function RegisterPage() {
           durable entry per drop.
         </p>
 
-        <div className="mt-6 rounded-[var(--radius-control)] border border-white/10 bg-white/[0.03] p-4 text-xs leading-relaxed muted space-y-1">
+        <div className="mt-6 rounded-[var(--radius-control)] border border-[rgb(var(--accent)/0.2)] bg-[rgb(var(--accent)/0.06)] p-4 text-xs leading-relaxed muted space-y-1">
           <div className="flex items-center gap-2 font-semibold text-[rgb(var(--accent))]">
             <ShieldCheck className="h-4 w-4" />
             <span>Anti-Sybil Uniqueness Guarantee</span>
@@ -1269,7 +1269,7 @@ export function RegisterPage() {
               }}
             />
             {faceError && (
-              <p className="mt-3 text-sm text-red-300" role="alert">
+              <p className="mt-3 text-sm text-red-700 dark:text-red-300" role="alert">
                 {faceError}
               </p>
             )}
@@ -1372,7 +1372,7 @@ export function ReceiptsPage() {
               <p className="mt-3 text-sm muted">
                 {receipt.drop.location_label}
               </p>
-              <div className="mt-7 flex items-center justify-between border-t border-white/10 pt-5 text-sm">
+              <div className="mt-7 flex items-center justify-between border-t border-[rgb(var(--line)/0.1)] pt-5 text-sm">
                 <span className="muted">{time(receipt.entry.joined_at)}</span>
                 <span className="font-semibold">Open receipt</span>
               </div>
@@ -1498,7 +1498,7 @@ export function ProofPage() {
             <summary className="cursor-pointer font-semibold">
               Inspect proof payload
             </summary>
-            <pre className="mt-5 max-h-[600px] overflow-auto rounded-[var(--radius-control)] bg-black/25 p-5 font-mono text-xs leading-relaxed muted">
+            <pre className="mt-5 max-h-[600px] overflow-auto rounded-[var(--radius-control)] bg-[rgb(var(--line)/0.06)] p-5 font-mono text-xs leading-relaxed muted">
               {JSON.stringify(proof.data, null, 2)}
             </pre>
           </details>

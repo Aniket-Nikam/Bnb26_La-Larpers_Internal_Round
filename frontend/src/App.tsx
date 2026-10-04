@@ -97,8 +97,8 @@ function AppShell() {
   const navClass = (path: string) =>
     "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 transition-colors " +
     (location.pathname === path
-      ? "bg-white/[0.07] text-[rgb(var(--ink))]"
-      : "text-[rgb(var(--muted))] hover:bg-white/[0.04] hover:text-[rgb(var(--ink))]");
+      ? "bg-[rgb(var(--line)/0.08)] text-[rgb(var(--ink))] font-bold"
+      : "text-[rgb(var(--muted))] hover:bg-[rgb(var(--line)/0.05)] hover:text-[rgb(var(--ink))]");
   const publicLinks = (
     <>
       <Link className={navClass("/")} to="/">
@@ -144,7 +144,7 @@ function AppShell() {
             className="flex shrink-0 items-center gap-3 text-base font-extrabold tracking-[-0.04em]"
             aria-label="FairDrop home"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--canvas))]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgb(var(--accent))] text-white dark:text-[rgb(var(--canvas))] shadow-sm">
               <Ticket className="h-4 w-4" strokeWidth={2.4} />
             </span>
             <span>FairDrop</span>
@@ -224,7 +224,7 @@ function AppShell() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-white/[0.07]">
+      <footer className="border-t border-[rgb(var(--line)/0.1)]">
         <div className="page-wrap grid gap-8 py-10 md:grid-cols-[1.5fr_1fr_1fr]">
           <div className="max-w-md">
             <div className="flex items-center gap-2 font-bold">

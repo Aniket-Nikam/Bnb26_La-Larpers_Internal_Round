@@ -174,7 +174,7 @@ export function AltchaChallenge({
             ) : solving ? (
               <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
             ) : (
-              <div className="h-2 w-2 rounded-sm bg-transparent group-hover:bg-white/10" />
+              <div className="h-2 w-2 rounded-sm bg-transparent group-hover:bg-[rgb(var(--line)/0.12)]" />
             )}
           </div>
           <div className="flex flex-col">
@@ -218,12 +218,12 @@ export function AltchaChallenge({
       </div>
 
       {errorMsg && (
-        <div className="mt-2.5 flex items-center justify-between text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1.5 rounded">
+        <div className="mt-2.5 flex items-center justify-between text-xs text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1.5 rounded">
           <span>{errorMsg}</span>
           <button
             type="button"
             onClick={handleSolve}
-            className="text-xs text-white underline hover:no-underline ml-2"
+            className="text-xs text-rose-700 dark:text-rose-200 font-semibold underline hover:no-underline ml-2"
           >
             Retry
           </button>
