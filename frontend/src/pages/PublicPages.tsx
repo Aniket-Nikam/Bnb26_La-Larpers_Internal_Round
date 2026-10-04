@@ -715,9 +715,9 @@ export function DropDetail() {
 
 function AuthAside() {
   return (
-    <aside className="surface-soft hidden min-h-[600px] flex-col justify-between p-9 lg:flex">
+    <aside className="surface-soft hidden min-h-[600px] flex-col p-9 lg:flex">
       <ShieldCheck className="h-9 w-9 accent" />
-      <div>
+      <div className="mt-20">
         <h2 className="text-3xl font-semibold tracking-[-0.04em]">
           Your state belongs to you.
         </h2>
