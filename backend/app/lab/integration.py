@@ -27,7 +27,14 @@ from app.security.provisioning import _credential_digest
 
 
 def write_private(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Windows does not implement POSIX permission bits for mkdir. Passing 0700
+    # there can create an ACL that the process cannot traverse on the next
+    # operation, so inherit the already-restricted parent ACL instead. Linux
+    # keeps the explicit owner-only permissions used in deployment.
+    if os.name == "nt":
+        path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     # No raw access codes in API responses, DB rows, logs, or public reports.
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as out:

@@ -12,7 +12,9 @@ import {
   Activity,
   ArrowRight,
   FlaskConical,
+  Globe2,
   LogOut,
+  Plus,
   ShieldCheck,
   Ticket,
 } from "lucide-react";
@@ -88,7 +90,9 @@ function AppShell() {
   const session = useSession();
   const logout = useLogout();
   const location = useLocation();
-  const isOrganizer = location.pathname.startsWith("/organizer");
+  const organizerAccount = ["organizer", "admin"].includes(
+    session.data?.principal.role ?? "",
+  );
   const active = (path: string) =>
     location.pathname === path
       ? "text-[rgb(var(--ink))]"
@@ -114,12 +118,17 @@ function AppShell() {
       <Link className={active("/organizer")} to="/organizer">
         Dashboard
       </Link>
+      <Link className={active("/organizer/new")} to="/organizer/new">
+        <Plus className="h-4 w-4" />
+        New drop
+      </Link>
       <Link className={active("/organizer/lab")} to="/organizer/lab">
         <FlaskConical className="h-4 w-4" />
-        Lab
+        Attack lab
       </Link>
       <Link className={active("/")} to="/">
-        Exit
+        <Globe2 className="h-4 w-4" />
+        Public site
       </Link>
     </>
   );
@@ -129,7 +138,7 @@ function AppShell() {
       <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[rgb(var(--canvas)/0.9)] backdrop-blur-xl">
         <div className="page-wrap flex h-[72px] items-center justify-between gap-5">
           <Link
-            to="/"
+            to={organizerAccount ? "/organizer" : "/"}
             className="flex shrink-0 items-center gap-3 text-base font-extrabold tracking-[-0.04em]"
             aria-label="FairDrop home"
           >
@@ -137,18 +146,18 @@ function AppShell() {
               <Ticket className="h-4 w-4" strokeWidth={2.4} />
             </span>
             <span>FairDrop</span>
-            {isOrganizer && (
+            {organizerAccount && (
               <span className="hidden text-xs font-semibold tracking-normal muted sm:inline">
                 Organizer
               </span>
             )}
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold lg:flex">
-            {isOrganizer ? organizerLinks : publicLinks}
+            {organizerAccount ? organizerLinks : publicLinks}
           </nav>
           <div className="flex items-center gap-3">
             <SystemState />
-            {!isOrganizer && session.data && (
+            {session.data?.principal.role === "participant" && (
               <Link
                 className="button-ghost hidden sm:inline-flex"
                 to="/entries"
@@ -156,7 +165,7 @@ function AppShell() {
                 My tickets
               </Link>
             )}
-            {!isOrganizer && session.data ? (
+            {session.data ? (
               <>
                 <Link
                   className="button-secondary hidden sm:inline-flex"
@@ -173,17 +182,17 @@ function AppShell() {
                   <LogOut className="h-4 w-4" />
                 </button>
               </>
-            ) : !isOrganizer ? (
+            ) : (
               <Link className="button" to="/sign-in">
                 Sign in
                 <ArrowRight className="h-4 w-4" />
               </Link>
-            ) : null}
+            )}
           </div>
         </div>
         <nav className="no-scrollbar page-wrap flex gap-5 overflow-x-auto pb-3 text-sm font-semibold lg:hidden">
-          {isOrganizer ? organizerLinks : publicLinks}
-          {!isOrganizer && session.data && (
+          {organizerAccount ? organizerLinks : publicLinks}
+          {session.data?.principal.role === "participant" && (
             <>
               <Link className={active("/entries")} to="/entries">
                 Receipts
@@ -213,12 +222,22 @@ function AppShell() {
             </p>
           </div>
           <div className="text-sm">
-            <p className="font-semibold">Explore</p>
-            <div className="mt-3 flex flex-col gap-2 muted">
-              <Link to="/drops">Live drops</Link>
-              <Link to="/fairness">How fairness works</Link>
-              <Link to="/entries">My receipts</Link>
-            </div>
+            <p className="font-semibold">
+              {organizerAccount ? "Operate" : "Explore"}
+            </p>
+            {organizerAccount ? (
+              <div className="mt-3 flex flex-col gap-2 muted">
+                <Link to="/organizer">Control room</Link>
+                <Link to="/organizer/new">Create drop</Link>
+                <Link to="/organizer/lab">Attack lab</Link>
+              </div>
+            ) : (
+              <div className="mt-3 flex flex-col gap-2 muted">
+                <Link to="/drops">Live drops</Link>
+                <Link to="/fairness">How fairness works</Link>
+                <Link to="/entries">My receipts</Link>
+              </div>
+            )}
           </div>
           <div className="text-sm">
             <p className="font-semibold">Transparency</p>

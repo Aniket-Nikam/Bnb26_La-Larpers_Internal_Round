@@ -4,12 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   BarChart3,
+  Bot,
   CalendarDays,
   CheckCircle2,
+  Database,
   Download,
   FileUp,
   FlaskConical,
+  Gauge,
   Plus,
+  Radio,
   ShieldCheck,
   Ticket,
   Users,
@@ -35,17 +39,130 @@ import { ErrorMessage } from "../components/State";
 import { api, time, useAction, useSession } from "../lib/api/client";
 import type { Drop, Page, Schema } from "../lib/api/client";
 
+const lifecycle = [
+  ["DRAFT", "Rules editable"],
+  ["SCHEDULED", "Rules locked"],
+  ["OPEN", "Entries accepted"],
+  ["CLOSED", "Manifest frozen"],
+  ["DRAWING", "Ranking computed"],
+  ["OFFERING", "Seats offered"],
+  ["COMPLETED", "Allocation final"],
+] as const;
+
+function LifecycleRail({ phase }: { phase: string }) {
+  const current = lifecycle.findIndex(([value]) => value === phase);
+  return (
+    <section className="surface-soft mb-6 overflow-x-auto p-5 sm:p-6">
+      <div className="flex min-w-[780px] items-start">
+        {lifecycle.map(([value, description], index) => {
+          const reached = current >= index && current !== -1;
+          const active = value === phase;
+          return (
+            <div className="flex min-w-0 flex-1 items-start" key={value}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center">
+                  <span
+                    className={
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold " +
+                      (active
+                        ? "border-[rgb(var(--accent))] bg-[rgb(var(--accent))] text-[rgb(var(--canvas))]"
+                        : reached
+                          ? "border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--accent)/0.12)] accent"
+                          : "border-white/10 bg-white/[0.025] muted")
+                    }
+                  >
+                    {index + 1}
+                  </span>
+                  {index < lifecycle.length - 1 && (
+                    <span
+                      className={
+                        "h-px flex-1 " +
+                        (current > index
+                          ? "bg-[rgb(var(--accent)/0.55)]"
+                          : "bg-white/10")
+                      }
+                    />
+                  )}
+                </div>
+                <p className="mt-3 text-xs font-semibold">{value}</p>
+                <p className="mt-1 pr-3 text-[11px] muted">{description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {phase === "CANCELLED" && (
+        <p className="mt-5 text-sm text-red-200">
+          This drop was cancelled before allocation completed.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function OrganizerDashboard() {
   const drops = useQuery({
     queryKey: ["admin-drops"],
     queryFn: () => api<Page<Schema["DropSummary"]>>("/admin/drops"),
   });
+  const publicDrops =
+    drops.data?.items.filter((drop) => drop.category !== "lab") ?? [];
+  const labTrialCount =
+    drops.data?.items.filter((drop) => drop.category === "lab").length ?? 0;
+  const dropIds = publicDrops.map((drop) => drop.id).join(",");
+  const metrics = useQuery({
+    queryKey: ["organizer-dashboard-metrics", dropIds],
+    enabled: dropIds.length > 0,
+    queryFn: () =>
+      Promise.all(
+        publicDrops.map((drop) =>
+          api<Schema["InventoryMetrics"]>(
+            `/admin/drops/${drop.id}/metrics`,
+          ).catch(() => null),
+        ),
+      ),
+    refetchInterval: 5000,
+  });
+  const health = useQuery({
+    queryKey: ["organizer-dashboard-health"],
+    queryFn: async () =>
+      (await (await fetch("/api/health/ready")).json()) as Schema["ReadyHealth"],
+    refetchInterval: 15000,
+  });
+  const evidence = (metrics.data ?? []).filter(
+    (value): value is Schema["InventoryMetrics"] => value !== null,
+  );
+  const totals = evidence.reduce(
+    (result, value) => ({
+      entries: result.entries + value.entered_count,
+      offers: result.offers + value.active_reservations,
+      confirmed: result.confirmed + value.confirmed_seats,
+      free: result.free + value.free_seats,
+      duplicateOwners:
+        result.duplicateOwners + value.duplicate_active_owners,
+      integrity: result.integrity && value.integrity_ok,
+    }),
+    {
+      entries: 0,
+      offers: 0,
+      confirmed: 0,
+      free: 0,
+      duplicateOwners: 0,
+      integrity: true,
+    },
+  );
+  const activeDrops =
+    publicDrops.filter((drop) =>
+      ["SCHEDULED", "OPEN", "CLOSED", "DRAWING", "OFFERING"].includes(
+        drop.phase,
+      ),
+    ).length ?? 0;
   return (
     <div className="pb-16">
       <PageHeader
-        eyebrow="Organizer command center"
-        title="Build trust before the queue arrives."
-        body="Create drops, grant eligibility, monitor inventory, publish proofs, and challenge the system under controlled attack traffic."
+        eyebrow="Live fairness operations"
+        title="Fairness control room."
+        body="Watch identities become durable entries, verify inventory integrity, and prove that request volume cannot buy extra lottery chances."
         action={
           <Link className="button" to="/organizer/new">
             <Plus className="h-4 w-4" />
@@ -55,7 +172,125 @@ export function OrganizerDashboard() {
       />
       <ErrorMessage error={drops.error} />
       {drops.isPending && <LoadingBlock label="Loading organizer drops" />}
-      {drops.data?.items.length === 0 && (
+      {drops.data && (
+        <>
+          <section className="surface relative mb-6 overflow-hidden p-7 sm:p-9">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[rgb(var(--accent)/0.08)] blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="status-badge" data-tone="success">
+                    <Radio className="h-3.5 w-3.5" />
+                    {health.data?.status === "ready"
+                      ? "Core system ready"
+                      : "Core system protected"}
+                  </span>
+                  <span
+                    className="status-badge"
+                    data-tone={
+                      health.data?.capabilities.lab ? "success" : "neutral"
+                    }
+                  >
+                    <FlaskConical className="h-3.5 w-3.5" />
+                    {health.data?.capabilities.lab
+                      ? "Attack runner online"
+                      : "Attack runner offline"}
+                  </span>
+                </div>
+                <h2 className="mt-7 max-w-3xl text-3xl font-semibold tracking-[-0.045em] sm:text-5xl">
+                  {activeDrops} active drop{activeDrops === 1 ? "" : "s"}. Zero
+                  tolerance for duplicate ownership.
+                </h2>
+                <p className="mt-4 max-w-2xl leading-relaxed muted">
+                  PostgreSQL owns every entry, offer, and seat. Redis absorbs
+                  abusive request volume without becoming the ticket ledger.
+                </p>
+              </div>
+              <div className="rounded-[var(--radius-control)] border border-white/10 bg-black/20 p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.16em] muted">
+                      Inventory audit
+                    </p>
+                    <p className="mt-3 text-3xl font-semibold">
+                      {totals.integrity ? "Verified" : "Review required"}
+                    </p>
+                  </div>
+                  <ShieldCheck className="h-9 w-9 accent" />
+                </div>
+                <p className="mt-5 text-sm muted">
+                  Duplicate active owners: {totals.duplicateOwners}
+                </p>
+              </div>
+            </div>
+            <div className="relative mt-9 grid grid-cols-2 gap-x-6 border-t border-white/10 md:grid-cols-4">
+              <Metric label="Durable entries" value={totals.entries} />
+              <Metric label="Active offers" value={totals.offers} />
+              <Metric label="Confirmed seats" value={totals.confirmed} />
+              <Metric label="Seats available" value={totals.free} />
+            </div>
+          </section>
+
+          <section className="mb-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="surface-soft p-7 sm:p-8">
+              <div className="flex items-start justify-between gap-5">
+                <div>
+                  <p className="text-sm font-semibold accent">
+                    What the rush cannot buy
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold">
+                    Requests create load, not extra chances.
+                  </h2>
+                </div>
+                <Bot className="h-7 w-7 accent" />
+              </div>
+              <div className="mt-7 grid gap-5 sm:grid-cols-3">
+                <div>
+                  <Gauge className="h-5 w-5 accent" />
+                  <p className="mt-3 font-semibold">Rate limits</p>
+                  <p className="mt-2 text-sm leading-relaxed muted">
+                    Shared limits contain request floods across API replicas.
+                  </p>
+                </div>
+                <div>
+                  <Users className="h-5 w-5 accent" />
+                  <p className="mt-3 font-semibold">One identity</p>
+                  <p className="mt-2 text-sm leading-relaxed muted">
+                    A unique database entry collapses retries and duplicate tabs.
+                  </p>
+                </div>
+                <div>
+                  <Database className="h-5 w-5 accent" />
+                  <p className="mt-3 font-semibold">Atomic inventory</p>
+                  <p className="mt-2 text-sm leading-relaxed muted">
+                    Seat ownership cannot oversell or split across participants.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="surface-soft flex flex-col justify-between p-7 sm:p-8">
+              <div>
+                <FlaskConical className="h-7 w-7 accent" />
+                <h2 className="mt-6 text-2xl font-semibold">
+                  Challenge the system.
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed muted">
+                  Run bounded retry floods, early-bot traffic, reconnects, and
+                  matched FCFS-versus-lottery trials through the real HTTP path.
+                </p>
+                <p className="mt-5 text-xs muted">
+                  {labTrialCount} isolated trial{labTrialCount === 1 ? "" : "s"}{" "}
+                  kept outside public drop totals.
+                </p>
+              </div>
+              <Link className="button mt-8 self-start" to="/organizer/lab">
+                Open attack lab <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </section>
+        </>
+      )}
+      {publicDrops.length === 0 && (
         <EmptyState
           title="Create your first fair drop"
           body="Configure the entry window, capacity, and confirmation policy before inviting participants."
@@ -66,8 +301,18 @@ export function OrganizerDashboard() {
           }
         />
       )}
+      {publicDrops.length ? (
+        <div className="mb-5 flex items-end justify-between gap-5">
+          <div>
+            <h2 className="text-2xl font-semibold">Drop operations</h2>
+            <p className="mt-2 text-sm muted">
+              Manage locked rules, invitations, allocation and evidence.
+            </p>
+          </div>
+        </div>
+      ) : null}
       <div className="grid gap-5 md:grid-cols-2">
-        {drops.data?.items.map((d) => (
+        {publicDrops.map((d) => (
           <TicketCard className="p-7 sm:p-8" key={d.id}>
             <div className="flex items-start justify-between gap-5">
               <StatusBadge value={d.phase} />
@@ -382,6 +627,7 @@ export function ManageDrop() {
             body={time(drop.data.starts_at) + " to " + time(drop.data.ends_at)}
             action={<StatusBadge value={drop.data.phase} />}
           />
+          <LifecycleRail phase={drop.data.phase} />
           {drop.data.phase === "DRAFT" && (
             <TicketCard className="mb-6 p-7 sm:p-9">
               <div className="grid gap-8 lg:grid-cols-[1fr_0.7fr]">
@@ -671,7 +917,10 @@ export function AttackLab() {
     enabled: !!health.data?.capabilities.lab,
     refetchInterval: 3000,
   });
-  const selected = runId ?? runs.data?.items[0]?.run_id;
+  const selected =
+    runId ??
+    runs.data?.items.find((item) => item.status === "COMPLETED")?.run_id ??
+    runs.data?.items[0]?.run_id;
   const run = useQuery({
     queryKey: ["lab-run", selected],
     queryFn: () => api<Schema["RunDetail"]>(`/admin/lab/runs/${selected}`),
@@ -691,6 +940,11 @@ export function AttackLab() {
         },
       ]
     : [];
+  const botOfferRatio = report?.allocation.bot_advantage;
+  const botOfferRatioLabel =
+    botOfferRatio == null
+      ? report?.allocation.undefined_reason ?? "Not measurable"
+      : `${botOfferRatio.toFixed(2)}x${Math.abs(botOfferRatio - 1) < 0.01 ? " (parity)" : ""}`;
   return (
     <div className="pb-16">
       <PageHeader
@@ -702,12 +956,74 @@ export function AttackLab() {
       {health.isPending ? (
         <LoadingBlock label="Checking lab availability" />
       ) : !health.data?.capabilities.lab ? (
-        <EmptyState
-          title="Lab is safely disabled"
-          body="Attack traffic can run only when the server uses the isolated demo profile and lab capability."
-        />
+        <section className="surface overflow-hidden">
+          <div className="grid gap-8 p-7 sm:p-9 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <span className="status-badge">Runner offline</span>
+              <h2 className="mt-6 text-3xl font-semibold tracking-tight">
+                Core protection is live. Traffic generation is not.
+              </h2>
+              <p className="mt-4 max-w-2xl leading-relaxed muted">
+                This API is running in the isolated demo profile, but no k6 lab
+                worker is connected. FairDrop will not present fabricated attack
+                numbers as live evidence.
+              </p>
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <div className="surface-soft p-5">
+                  <ShieldCheck className="h-5 w-5 accent" />
+                  <p className="mt-4 font-semibold">Protected writes ready</p>
+                  <p className="mt-2 text-sm muted">
+                    Sessions, CSRF, rate limits and durable entries remain active.
+                  </p>
+                </div>
+                <div className="surface-soft p-5">
+                  <Database className="h-5 w-5 accent" />
+                  <p className="mt-4 font-semibold">Inventory authoritative</p>
+                  <p className="mt-2 text-sm muted">
+                    PostgreSQL still owns entries, offers and seats.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <aside className="rounded-[var(--radius-control)] border border-white/10 bg-black/20 p-6">
+              <p className="text-sm font-semibold accent">Enable measured runs</p>
+              <ol className="mt-5 space-y-4 text-sm muted">
+                <li className="flex gap-3">
+                  <span className="font-mono accent">01</span>
+                  Install the allowlisted k6 executable.
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-mono accent">02</span>
+                  Start the API with LAB_ENABLED=true.
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-mono accent">03</span>
+                  Start the dedicated app.lab.worker process.
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-mono accent">04</span>
+                  Run retry flood or a matched policy comparison here.
+                </li>
+              </ol>
+            </aside>
+          </div>
+        </section>
       ) : (
         <>
+          <section className="surface-soft mb-6 grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["Authenticate", "Real cookie session and CSRF path"],
+              ["Flood", "Bounded k6 arrival-rate traffic"],
+              ["Reconcile", "PostgreSQL allocation ground truth"],
+              ["Prove", "Inventory audit and exportable report"],
+            ].map(([title, body], index) => (
+              <div key={title}>
+                <p className="font-mono text-xs accent">0{index + 1}</p>
+                <p className="mt-3 font-semibold">{title}</p>
+                <p className="mt-2 text-sm leading-relaxed muted">{body}</p>
+              </div>
+            ))}
+          </section>
           <form
             className="surface grid gap-5 p-7 sm:p-9 md:grid-cols-2"
             onSubmit={(e) => {
@@ -738,13 +1054,13 @@ export function AttackLab() {
               <span className="field-label">Scenario</span>
               <select className="field" name="scenario">
                 {[
-                  "normal",
-                  "early_bot",
                   "retry_flood",
+                  "policy_compare",
+                  "early_bot",
                   "credential_farm",
                   "reconnect",
                   "expiry_race",
-                  "policy_compare",
+                  "normal",
                 ].map((s) => (
                   <option key={s}>{s}</option>
                 ))}
@@ -752,11 +1068,11 @@ export function AttackLab() {
             </label>
             {(
               [
-                ["human_actors", "Human identities", 5, 0, 50000],
+                ["human_actors", "Human identities", 10, 0, 50000],
                 ["bot_actors", "Bot identities", 5, 0, 50000],
-                ["target_rps", "Target HTTP requests / second", 5, 1, 2000],
+                ["target_rps", "Target HTTP requests / second", 20, 1, 2000],
                 ["duration_seconds", "Duration (seconds)", 10, 1, 300],
-                ["retries_per_actor", "Retries per identity", 2, 0, 20],
+                ["retries_per_actor", "Retries per identity", 10, 0, 20],
                 ["trials", "Independent trials", 1, 1, 20],
                 ["drop_capacity", "Seats per trial", 3, 1, 500],
               ] as const
@@ -849,6 +1165,48 @@ export function AttackLab() {
                     />
                   </div>
 
+                  <section className="surface-soft p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-5">
+                      <div>
+                        <p className="text-sm font-semibold">
+                          Request pressure versus identity outcomes
+                        </p>
+                        <p className="mt-1 text-xs muted">
+                          Real HTTP observations reconciled with persisted entries.
+                        </p>
+                      </div>
+                      <Gauge className="h-5 w-5 accent" />
+                    </div>
+                    <div className="mt-6 grid grid-cols-2 gap-x-5 md:grid-cols-5">
+                      <Metric
+                        label="Scheduled iterations"
+                        value={report.workload.scheduled_iterations}
+                      />
+                      <Metric
+                        label="Delivered iterations"
+                        value={report.workload.delivered_iterations}
+                      />
+                      <Metric
+                        label="Attempted identities"
+                        value={
+                          report.admission.human.attempted_unique_identities +
+                          report.admission.bot.attempted_unique_identities
+                        }
+                      />
+                      <Metric
+                        label="Accepted identities"
+                        value={
+                          report.admission.human.accepted_unique_identities +
+                          report.admission.bot.accepted_unique_identities
+                        }
+                      />
+                      <Metric
+                        label="Expected 429"
+                        value={report.performance.expected_429}
+                      />
+                    </div>
+                  </section>
+
                   <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
                     <section className="surface-soft p-6">
                       <div className="flex items-center justify-between gap-4">
@@ -898,6 +1256,19 @@ export function AttackLab() {
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        {offerData.map((cohort) => (
+                          <div
+                            className="rounded-[var(--radius-control)] border border-white/8 bg-black/10 px-4 py-3"
+                            key={cohort.cohort}
+                          >
+                            <p className="text-xs muted">{cohort.cohort}</p>
+                            <p className="mt-1 text-xl font-semibold">
+                              {cohort.rate}%
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </section>
 
                     <section className="surface-soft flex flex-col justify-between p-6">
@@ -925,11 +1296,9 @@ export function AttackLab() {
                           {report.integrity.duplicate_active_owners}.
                         </p>
                         <p className="mt-4 text-sm muted">
-                          Bot advantage:{" "}
-                          {report.allocation.bot_advantage ??
-                            report.allocation.undefined_reason ??
-                            "Not measurable"}
-                          .
+                          Bot-to-human offer ratio: {botOfferRatioLabel}. A
+                          1.00x ratio is parity: repeated requests did not buy
+                          better per-identity odds.
                         </p>
                       </div>
                       <a

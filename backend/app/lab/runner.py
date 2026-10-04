@@ -243,7 +243,18 @@ class LabRunner:
     def _subprocess_env(self, config: RunConfig, fixture: Path, run_id: str) -> dict[str, str]:
         keep = {
             name: os.environ[name]
-            for name in ("PATH", "SystemRoot", "WINDIR", "TEMP", "TMP")
+            for name in (
+                "PATH",
+                "SystemRoot",
+                "SystemDrive",
+                "WINDIR",
+                "ProgramData",
+                "LOCALAPPDATA",
+                "APPDATA",
+                "USERPROFILE",
+                "TEMP",
+                "TMP",
+            )
             if name in os.environ
         }
         keep.update(

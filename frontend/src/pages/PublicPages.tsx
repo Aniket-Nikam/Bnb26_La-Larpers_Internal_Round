@@ -39,7 +39,7 @@ import {
   useRegister,
   useSession,
 } from "../lib/api/client";
-import type { Drop, Entry, Page, Schema } from "../lib/api/client";
+import type { Drop, Entry, Page, Schema, Session } from "../lib/api/client";
 
 const phases = ["ALL", "SCHEDULED", "OPEN", "OFFERING", "COMPLETED"] as const;
 
@@ -556,7 +556,10 @@ export function DropDetail() {
   const state = useQuery({
     queryKey: ["state", id, session.data?.principal.id],
     queryFn: () => api<Schema["MyDropState"]>("/drops/" + id + "/me"),
-    enabled: !!session.data && !!drop.data && drop.data.phase !== "DRAFT",
+    enabled:
+      session.data?.principal.role === "participant" &&
+      !!drop.data &&
+      drop.data.phase !== "DRAFT",
     refetchInterval: 3000,
   });
   if (drop.isPending)
@@ -572,13 +575,24 @@ export function DropDetail() {
       </div>
     );
   const d = drop.data;
+  const ownsDrop =
+    ["organizer", "admin"].includes(session.data?.principal.role ?? "") &&
+    (session.data?.principal.role === "admin" ||
+      session.data?.principal.public_id === d.organizer.public_id);
   return (
     <div className="mx-auto max-w-5xl py-10 sm:py-16">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <Link className="button-ghost" to="/drops">
           Back to discovery
         </Link>
-        <StatusBadge value={d.phase} />
+        <div className="flex items-center gap-3">
+          {ownsDrop && (
+            <Link className="button-secondary" to={`/organizer/drops/${id}`}>
+              Manage this drop
+            </Link>
+          )}
+          <StatusBadge value={d.phase} />
+        </div>
       </div>
       <TicketCard>
         <div className="grid gap-10 p-7 sm:p-10 lg:grid-cols-[1.15fr_0.85fr]">
@@ -637,7 +651,30 @@ export function DropDetail() {
         </div>
         <TicketDivider />
         <div className="p-7 sm:p-10">
-          {session.isPending ? (
+          {ownsDrop ? (
+            <div className="rounded-[var(--radius-control)] border border-[rgb(var(--accent)/0.24)] bg-[rgb(var(--accent)/0.07)] p-6 sm:p-7">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold accent">
+                    Organizer preview
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold">
+                    This is the participant-facing event page.
+                  </h2>
+                  <p className="mt-2 max-w-2xl muted">
+                    Your organizer account manages rules and allocation; it does
+                    not receive a participant entry in its own drop.
+                  </p>
+                </div>
+                <Link
+                  className="button shrink-0"
+                  to={`/organizer/drops/${id}`}
+                >
+                  Open control room
+                </Link>
+              </div>
+            </div>
+          ) : session.isPending ? (
             <LoadingBlock label="Checking session" />
           ) : !session.data ? (
             <div className="flex flex-col items-start gap-4">
@@ -785,9 +822,15 @@ export function SignInPage() {
             event.preventDefault();
             const fields = new FormData(event.currentTarget);
             const options = {
-              onSuccess: () => {
+              onSuccess: (authenticated: Session) => {
                 setCode("");
-                navigate("/drops");
+                navigate(
+                  ["organizer", "admin"].includes(
+                    authenticated.principal.role,
+                  )
+                    ? "/organizer"
+                    : "/drops",
+                );
               },
             };
             if (invitationMode) login.mutate(code, options);
