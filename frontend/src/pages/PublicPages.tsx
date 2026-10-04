@@ -24,6 +24,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { TicketCard, TicketDivider } from "../components/Ticket";
+import { CloudflareTurnstile } from "../components/CloudflareTurnstile";
 import {
   EmptyState,
   LoadingBlock,
@@ -551,6 +552,7 @@ export function DropDetail() {
   const { id } = useParams();
   const session = useSession();
   const action = useAction<Entry>();
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const drop = useQuery({
     queryKey: ["drop", id],
     queryFn: () => api<Drop>("/drops/" + id),
@@ -707,10 +709,16 @@ export function DropDetail() {
                   window. Refreshes and retries return the same entry.
                 </p>
               </div>
+              <CloudflareTurnstile
+                verified={turnstileVerified}
+                onVerify={() => setTurnstileVerified(true)}
+                label="Verify you are human to enter drop"
+                className="w-full max-w-sm"
+              />
               <button
                 className="button"
                 disabled={
-                  action.isPending || d.phase !== "OPEN"
+                  !turnstileVerified || action.isPending || d.phase !== "OPEN"
                 }
                 onClick={() =>
                   action.mutate({ path: "/drops/" + id + "/entries" })
@@ -718,9 +726,11 @@ export function DropDetail() {
               >
                 {action.isPending
                   ? "Saving entry..."
-                  : d.phase === "OPEN"
-                    ? "Enter this drop"
-                    : "Entry window is not open"}
+                  : !turnstileVerified
+                    ? "Complete Cloudflare challenge to enter"
+                    : d.phase === "OPEN"
+                      ? "Enter this drop"
+                      : "Entry window is not open"}
               </button>
             </div>
           )}
@@ -774,6 +784,7 @@ function AuthAside() {
 export function SignInPage() {
   const [invitationMode, setInvitationMode] = useState(false);
   const [code, setCode] = useState("");
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const login = useLogin();
   const passwordLogin = usePasswordLogin();
   const navigate = useNavigate();
@@ -880,12 +891,21 @@ export function SignInPage() {
               </label>
             </>
           )}
+
+          <CloudflareTurnstile
+            verified={turnstileVerified}
+            onVerify={() => setTurnstileVerified(true)}
+            label="Verify you are human to sign in"
+          />
+
           <button
             className="button w-full"
-            disabled={login.isPending || passwordLogin.isPending}
+            disabled={login.isPending || passwordLogin.isPending || !turnstileVerified}
           >
             {login.isPending || passwordLogin.isPending
               ? "Signing in..."
+              : !turnstileVerified
+              ? "Complete Cloudflare challenge to sign in"
               : "Sign in"}
           </button>
           <ErrorMessage error={login.error ?? passwordLogin.error} />
@@ -1088,6 +1108,7 @@ export function RegisterPage() {
   );
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceError, setFaceError] = useState<string | null>(null);
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const register = useRegister();
   const navigate = useNavigate();
   return (
@@ -1239,8 +1260,28 @@ export function RegisterPage() {
               </p>
             )}
           </div>
-          <button className="button w-full" disabled={register.isPending}>
-            {register.isPending ? "Verifying identity & creating account..." : "Create account"}
+
+          <div>
+            <span className="field-label">Bot detection &amp; security</span>
+            <p className="mb-3 mt-1.5 text-sm leading-relaxed muted">
+              Cloudflare Turnstile verification confirms you are human and stops automated registration attacks.
+            </p>
+            <CloudflareTurnstile
+              verified={turnstileVerified}
+              onVerify={() => setTurnstileVerified(true)}
+              label="Verify you are human to create account"
+            />
+          </div>
+
+          <button
+            className="button w-full"
+            disabled={register.isPending || !turnstileVerified || !faceImage}
+          >
+            {register.isPending
+              ? "Verifying identity & creating account..."
+              : !turnstileVerified
+              ? "Complete Cloudflare challenge to create account"
+              : "Create account"}
           </button>
           <ErrorMessage error={register.error} />
         </form>
