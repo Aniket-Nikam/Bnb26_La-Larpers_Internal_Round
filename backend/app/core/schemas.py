@@ -104,6 +104,7 @@ class RegistrationInput(PasswordSessionInput):
     display_name: str = Field(min_length=1, max_length=100)
     role: Literal["participant", "organizer", "admin"] = "participant"
     admin_key: str | None = None
+    face_image: str | None = None
 
     @field_validator("display_name")
     @classmethod

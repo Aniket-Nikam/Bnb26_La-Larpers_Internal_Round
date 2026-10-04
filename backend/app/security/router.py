@@ -16,6 +16,7 @@ from app.persistence.database import get_db
 from app.persistence.models import User
 from app.security.authorization import get_principal
 from app.security.csrf import generate_csrf_token, require_csrf, require_origin
+from app.security.face import check_duplicate_face, extract_face_embedding
 from app.security.limits import enforce_limit
 from app.security.passwords import hash_password, verify_account
 from app.security.provisioning import _credential_digest, provision_credential, verify_credential
@@ -84,11 +85,29 @@ def register(body: s.RegistrationInput, request: Request, response: Response, db
             raise DomainError(
                 "FORBIDDEN", "Admin registration requires a valid admin key in production.", 403
             )
+    face_embedding = None
+    if body.face_image:
+        face_embedding = extract_face_embedding(body.face_image)
+        duplicate = check_duplicate_face(db, face_embedding)
+        if duplicate:
+            raise DomainError(
+                "DUPLICATE_FACE",
+                "An account with this face is already registered. Duplicate accounts are not permitted.",
+                409,
+            )
+    elif cfg.app_profile != "test":
+        raise DomainError(
+            "VALIDATION_ERROR",
+            "A camera face scan is required to register an account.",
+            422,
+        )
+
     user = User(
         display_name=body.display_name,
         email=body.email,
         password_hash=hash_password(body.password),
         role=body.role,
+        face_embedding=face_embedding,
     )
     db.add(user)
     db.flush()

@@ -6909,6 +6909,17 @@
               }
             ],
             "title": "Admin Key"
+          },
+          "face_image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Face Image"
           }
         },
         "additionalProperties": false,

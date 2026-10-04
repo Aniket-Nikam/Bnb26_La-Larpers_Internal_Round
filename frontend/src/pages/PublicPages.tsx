@@ -1,6 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck, Ticket, Lock, UserPlus } from "lucide-react";
+import {
+  Camera,
+  CheckCircle2,
+  Lock,
+  RefreshCw,
+  ScanFace,
+  ShieldCheck,
+  Ticket,
+  UserPlus,
+} from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { TicketCard, TicketDivider } from "../components/Ticket";
@@ -346,10 +355,230 @@ export function SignInPage() {
   );
 }
 
+function FaceScanner({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (image: string | null) => void;
+  disabled?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 640 },
+        },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
+    } catch (err: unknown) {
+      console.error("Camera access error:", err);
+      const msg =
+        err instanceof Error && err.name === "NotAllowedError"
+          ? "Camera permission denied. Please allow camera access in your browser settings to verify your face."
+          : "Could not access camera. Please check camera connection and permissions.";
+      setCameraError(msg);
+      setCameraActive(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!value) {
+      startCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [value]);
+
+  const captureFace = () => {
+    if (!videoRef.current) return;
+    setIsScanning(true);
+    setTimeout(() => {
+      try {
+        const video = videoRef.current;
+        if (!video) return;
+        const canvas = canvasRef.current || document.createElement("canvas");
+        const size = Math.min(video.videoWidth || 480, video.videoHeight || 480);
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const sx = ((video.videoWidth || size) - size) / 2;
+          const sy = ((video.videoHeight || size) - size) / 2;
+          ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+          onChange(dataUrl);
+          stopCamera();
+        }
+      } catch (e) {
+        console.error("Capture failed:", e);
+      } finally {
+        setIsScanning(false);
+      }
+    }, 400);
+  };
+
+  const handleRetake = () => {
+    onChange(null);
+  };
+
+  return (
+    <div className="flex flex-col items-center space-y-4">
+      <div className="relative flex items-center justify-center">
+        <div
+          className={`relative w-48 h-48 sm:w-56 sm:h-56 rounded-full overflow-hidden transition-all duration-300 flex items-center justify-center bg-black/40 shadow-inner ${
+            value
+              ? "ring-4 ring-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)]"
+              : cameraError
+              ? "ring-4 ring-rose-500/80"
+              : "ring-2 ring-emerald-400/50"
+          }`}
+        >
+          {value ? (
+            <img
+              src={value}
+              alt="Face scan preview"
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover scale-x-[-1] transition-opacity duration-300 ${
+                  cameraActive ? "opacity-100" : "opacity-0"
+                }`}
+              />
+              {!cameraActive && !cameraError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 space-y-2 p-4 text-center text-xs">
+                  <Camera className="w-8 h-8 animate-pulse text-emerald-400" />
+                  <span>Starting camera…</span>
+                </div>
+              )}
+              {cameraError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-rose-300 space-y-1 p-4 text-center text-xs bg-black/80">
+                  <ScanFace className="w-8 h-8 text-rose-400 mb-1" />
+                  <span className="font-semibold">Camera Error</span>
+                  <span className="text-[11px] leading-tight text-white/70">
+                    {cameraError}
+                  </span>
+                </div>
+              )}
+              {cameraActive && (
+                <motion.div
+                  className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34d399]"
+                  animate={{
+                    top: ["10%", "85%", "10%"],
+                  }}
+                  transition={{
+                    duration: 2.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+              )}
+            </>
+          )}
+
+          <div className="absolute inset-0 pointer-events-none rounded-full border border-dashed border-white/20" />
+          <div className="absolute top-2 w-6 h-[2px] bg-emerald-400/70 rounded-full" />
+          <div className="absolute bottom-2 w-6 h-[2px] bg-emerald-400/70 rounded-full" />
+          <div className="absolute left-2 h-6 w-[2px] bg-emerald-400/70 rounded-full" />
+          <div className="absolute right-2 h-6 w-[2px] bg-emerald-400/70 rounded-full" />
+        </div>
+
+        {value && (
+          <div className="absolute bottom-1 right-2 bg-emerald-600 text-white rounded-full p-1.5 shadow-lg border border-black/40">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        )}
+      </div>
+
+      <canvas ref={canvasRef} className="hidden" />
+
+      <div className="w-full text-center space-y-2">
+        {value ? (
+          <div className="flex flex-col items-center space-y-2">
+            <p className="text-sm font-medium text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 inline" /> Face ID Captured
+            </p>
+            <button
+              type="button"
+              className="text-xs text-white/70 hover:text-white flex items-center gap-1 border border-white/20 rounded-full px-3 py-1.5 transition-colors"
+              onClick={handleRetake}
+              disabled={disabled}
+            >
+              <RefreshCw className="w-3.5 h-3.5 inline" /> Retake Face Scan
+            </button>
+          </div>
+        ) : cameraActive ? (
+          <div className="flex flex-col items-center space-y-2">
+            <p className="text-xs text-white/60">
+              Center your face inside the circular viewfinder
+            </p>
+            <button
+              type="button"
+              className="button bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2 py-2 px-5 text-sm"
+              onClick={captureFace}
+              disabled={isScanning || disabled}
+            >
+              <ScanFace className="w-4 h-4" />
+              {isScanning ? "Scanning…" : "Capture Face ID"}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center space-y-2">
+            <button
+              type="button"
+              className="text-xs text-emerald-400 hover:underline flex items-center gap-1 py-1"
+              onClick={startCamera}
+            >
+              <Camera className="w-3.5 h-3.5 inline" /> Retry Camera Access
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function RegisterPage() {
   const [role, setRole] = useState<"participant" | "organizer" | "admin">(
     "participant",
   );
+  const [faceImage, setFaceImage] = useState<string | null>(null);
+  const [faceError, setFaceError] = useState<string | null>(null);
   const register = useRegister();
   const navigate = useNavigate();
   return (
@@ -363,6 +592,13 @@ export function RegisterPage() {
           className="space-y-6"
           onSubmit={(event) => {
             event.preventDefault();
+            setFaceError(null);
+            if (!faceImage) {
+              setFaceError(
+                "Please scan and capture your face before creating an account.",
+              );
+              return;
+            }
             const fields = new FormData(event.currentTarget);
             const selectedRole =
               (fields.get("role") as "participant" | "organizer" | "admin") ||
@@ -373,6 +609,7 @@ export function RegisterPage() {
                 email: String(fields.get("email")),
                 password: String(fields.get("password")),
                 role: selectedRole,
+                face_image: faceImage,
               },
               {
                 onSuccess: () => {
@@ -401,6 +638,35 @@ export function RegisterPage() {
               <option value="admin">Admin (Full administrative &amp; Attack Lab access)</option>
             </select>
           </label>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-white/70">
+              <span className="flex items-center gap-1.5">
+                <ScanFace className="w-4 h-4 text-emerald-400" />
+                Facial Identity Scan
+              </span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                1 Face = 1 Account
+              </span>
+            </div>
+            <FaceScanner
+              value={faceImage}
+              onChange={(img) => {
+                setFaceImage(img);
+                if (img) setFaceError(null);
+              }}
+              disabled={register.isPending}
+            />
+            {faceError && (
+              <p
+                role="alert"
+                className="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-lg p-2.5"
+              >
+                {faceError}
+              </p>
+            )}
+          </div>
+
           <label className="block">
             Display name
             <input
@@ -434,7 +700,7 @@ export function RegisterPage() {
             />
           </label>
           <button className="button" disabled={register.isPending}>
-            Create account
+            {register.isPending ? "Verifying Face & Creating…" : "Create account"}
           </button>
           <ErrorMessage error={register.error} />
         </form>

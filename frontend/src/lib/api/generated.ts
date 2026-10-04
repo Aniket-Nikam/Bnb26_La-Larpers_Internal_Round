@@ -1249,6 +1249,8 @@ export interface components {
             role: "participant" | "organizer" | "admin";
             /** Admin Key */
             admin_key?: string | null;
+            /** Face Image */
+            face_image?: string | null;
         };
         /** ReportPending */
         ReportPending: {
