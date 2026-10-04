@@ -1,10 +1,12 @@
-"""Phone number normalization, OTP generation, rate limiting, and verification."""
-
+import base64
 import hmac
 import logging
 import re
 import secrets
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Literal
 
 from sqlalchemy import select
@@ -19,6 +21,44 @@ logger = logging.getLogger("fairdrop.otp")
 
 # In-memory fallback if Redis is unreachable (useful in local isolated unit tests)
 _IN_MEMORY_OTP: dict[str, tuple[str, float, int]] = {}
+
+
+def dispatch_sms_via_twilio(to_number: str, message: str) -> bool:
+    """Send real SMS via Twilio REST API if configured."""
+    cfg = get_settings()
+    if not cfg.twilio_account_sid or not cfg.twilio_phone_number:
+        return False
+    auth_token = cfg.twilio_auth_token.get_secret_value()
+    if not auth_token:
+        return False
+
+    try:
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{cfg.twilio_account_sid}/Messages.json"
+        auth = base64.b64encode(f"{cfg.twilio_account_sid}:{auth_token}".encode()).decode()
+        data = urllib.parse.urlencode({
+            "From": cfg.twilio_phone_number,
+            "To": to_number,
+            "Body": message,
+        }).encode()
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Authorization": f"Basic {auth}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            logger.info("Twilio SMS successfully dispatched to %s (HTTP %s)", to_number, resp.status)
+            return True
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode("utf-8", errors="replace")
+        logger.error("Twilio HTTPError when sending to %s: HTTP %s - %s", to_number, e.code, err_msg)
+        return False
+    except Exception as e:
+        logger.error("Twilio unexpected error when sending to %s: %s", to_number, e)
+        return False
 
 
 def normalize_phone_number(raw: str) -> str:
@@ -111,6 +151,10 @@ def send_otp(
         _IN_MEMORY_OTP[f"{purpose}:{phone}"] = (otp, now + 300, 0)
 
     logger.info("Generated OTP for %s [%s]: %s", phone, purpose, otp)
+
+    # Dispatch real SMS via Twilio if credentials configured
+    sms_body = f"Your Fairdrop verification code is: {otp}. Valid for 5 minutes."
+    dispatch_sms_via_twilio(phone, sms_body)
 
     # Return debug_otp when not in strict production mode to facilitate frictionless testing
     is_dev = cfg.app_profile in {"test", "demo", "normal"}
