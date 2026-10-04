@@ -10,7 +10,9 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  :root[data-theme="dark"],
+  html.dark {
     color-scheme: dark;
     --canvas: 10 11 9;
     --surface: 18 20 16;
@@ -20,6 +22,21 @@
     --muted: 163 168 153;
     --accent: 190 225 82;
     --danger: 248 113 113;
+    --radius-panel: 28px;
+    --radius-control: 14px;
+  }
+
+  :root[data-theme="light"],
+  html.light {
+    color-scheme: light;
+    --canvas: 246 247 244;
+    --surface: 255 255 255;
+    --surface-high: 238 240 234;
+    --line: 20 22 18;
+    --ink: 18 20 16;
+    --muted: 102 108 96;
+    --accent: 96 148 18;
+    --danger: 220 38 38;
     --radius-panel: 28px;
     --radius-control: 14px;
   }
@@ -261,6 +278,54 @@
 
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Light mode refinements */
+  html.light .surface,
+  :root[data-theme="light"] .surface {
+    background: rgb(var(--surface));
+    box-shadow:
+      0 1px 3px rgb(0 0 0 / 0.05),
+      0 14px 36px rgb(0 0 0 / 0.04);
+  }
+
+  html.light .surface-soft,
+  :root[data-theme="light"] .surface-soft {
+    background: rgb(var(--surface));
+    border-color: rgb(var(--line) / 0.09);
+  }
+
+  html.light .button {
+    color: #ffffff;
+  }
+
+  html.light .button:hover:not(:disabled) {
+    background: rgb(80 126 14);
+  }
+
+  html.light .field {
+    background: rgb(255 255 255);
+  }
+
+  html.light select option {
+    background: rgb(255 255 255);
+    color: rgb(var(--ink));
+  }
+
+  html.light ::selection {
+    background: rgb(var(--accent) / 0.2);
+    color: rgb(var(--ink));
+  }
+
+  /* Adapt legacy white-opacity utilities seamlessly in light mode */
+  html.light [class*="border-white/"] {
+    border-color: rgb(var(--line) / 0.1) !important;
+  }
+  html.light [class*="bg-white/"] {
+    background-color: rgb(var(--line) / 0.04) !important;
+  }
+  html.light [class*="bg-black/"] {
+    background-color: rgb(var(--line) / 0.04) !important;
   }
 }
 

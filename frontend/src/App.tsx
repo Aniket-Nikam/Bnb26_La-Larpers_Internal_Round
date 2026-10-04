@@ -33,6 +33,7 @@ import { OrganizerGuard } from "./components/State";
 import { LoadingBlock } from "./components/Design";
 import { useLogout, useSession } from "./lib/api/client";
 import type { Schema } from "./lib/api/client";
+import { ThemeProvider, ThemeToggle } from "./lib/theme";
 
 const OrganizerDashboard = lazy(() =>
   import("./pages/OrganizerPages").then((module) => ({
@@ -136,7 +137,7 @@ function AppShell() {
 
   return (
     <div className="app-shell flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[rgb(var(--canvas)/0.9)] backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-[rgb(var(--line)/0.1)] bg-[rgb(var(--canvas)/0.9)] backdrop-blur-xl">
         <div className="page-wrap grid h-[72px] grid-cols-[auto_1fr_auto] items-center gap-3 lg:gap-5">
           <Link
             to={organizerAccount ? "/organizer" : "/"}
@@ -163,6 +164,7 @@ function AppShell() {
           </nav>
           <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
             <SystemState />
+            <ThemeToggle />
             {session.data?.principal.role === "participant" && (
               <Link
                 className="button-ghost hidden sm:inline-flex"
@@ -201,7 +203,7 @@ function AppShell() {
           </div>
         </div>
         <nav
-          className="no-scrollbar page-wrap flex gap-1 overflow-x-auto border-t border-white/[0.05] py-2 text-sm font-semibold md:hidden"
+          className="no-scrollbar page-wrap flex gap-1 overflow-x-auto border-t border-[rgb(var(--line)/0.08)] py-2 text-sm font-semibold md:hidden"
           aria-label="Mobile navigation"
         >
           {organizerAccount ? organizerLinks : publicLinks}
@@ -267,8 +269,9 @@ function AppShell() {
 
 export function App() {
   return (
-    <BrowserRouter>
-      <Suspense
+    <ThemeProvider>
+      <BrowserRouter>
+        <Suspense
         fallback={
           <div className="page-wrap py-24">
             <LoadingBlock label="Loading secure workspace" />
@@ -337,5 +340,6 @@ export function App() {
         </Routes>
       </Suspense>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }

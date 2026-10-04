@@ -150,7 +150,7 @@ export function AltchaChallenge({
 
   return (
     <div
-      className={`rounded-[var(--radius-control)] border border-white/15 bg-[#121316] p-3.5 select-none transition-colors ${className}`}
+      className={`rounded-[var(--radius-control)] border border-[rgb(var(--line)/0.15)] bg-[rgb(var(--surface))] p-3.5 select-none transition-colors ${className}`}
     >
       <div className="flex items-center justify-between gap-4">
         <button
@@ -163,16 +163,16 @@ export function AltchaChallenge({
           <div
             className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border transition-all duration-200 ${
               verified
-                ? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
+                ? "border-emerald-500 bg-emerald-500/20 text-emerald-500"
                 : solving
-                ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-400"
-                : "border-white/30 bg-white/[0.04] group-hover:border-white/60"
+                ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-500"
+                : "border-[rgb(var(--line)/0.25)] bg-[rgb(var(--line)/0.04)] group-hover:border-[rgb(var(--line)/0.5)]"
             }`}
           >
             {verified ? (
               <Check className="h-4 w-4 stroke-[2.5]" />
             ) : solving ? (
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
             ) : (
               <div className="h-2 w-2 rounded-sm bg-transparent group-hover:bg-white/10" />
             )}
@@ -181,15 +181,15 @@ export function AltchaChallenge({
             <span
               className={`text-sm font-medium transition-colors ${
                 verified
-                  ? "text-emerald-300"
+                  ? "text-emerald-500 font-semibold"
                   : solving
-                  ? "text-emerald-400"
-                  : "text-white/90 group-hover:text-white"
+                  ? "text-emerald-500"
+                  : "text-[rgb(var(--ink))] group-hover:text-[rgb(var(--ink))]"
               }`}
             >
               {verified ? "Verified" : solving ? "Solving cryptographic proof-of-work..." : label}
             </span>
-            <span className="text-[11px] text-white/40">
+            <span className="text-[11px] text-[rgb(var(--muted))]">
               {verified
                 ? tookMs != null
                   ? `Proof-of-work verified in ${tookMs}ms`
@@ -204,12 +204,12 @@ export function AltchaChallenge({
             href="https://altcha.org"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-white/80 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-[rgb(var(--ink)/0.8)] hover:text-[rgb(var(--ink))] transition-colors"
           >
-            <AltchaLogo className="h-3.5 w-3.5 text-emerald-400" />
+            <AltchaLogo className="h-3.5 w-3.5 text-emerald-500" />
             <span>ALTCHA</span>
           </a>
-          <div className="mt-0.5 flex gap-1.5 text-[9px] text-white/40">
+          <div className="mt-0.5 flex gap-1.5 text-[9px] text-[rgb(var(--muted))]">
             <span>FOSS</span>
             <span>•</span>
             <span>Self-Hosted</span>
