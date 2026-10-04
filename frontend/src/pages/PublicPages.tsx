@@ -370,54 +370,81 @@ function FaceScanner({
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  };
-
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 640 },
-        },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraActive(true);
-    } catch (err: unknown) {
-      console.error("Camera access error:", err);
-      const msg =
-        err instanceof Error && err.name === "NotAllowedError"
-          ? "Camera permission denied. Please allow camera access in your browser settings to verify your face."
-          : "Could not access camera. Please check camera connection and permissions.";
-      setCameraError(msg);
-      setCameraActive(false);
-    }
-  };
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    if (!value) {
-      startCamera();
-    }
-    return () => {
-      stopCamera();
+    let cancelled = false;
+
+    const cleanupStream = () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setCameraActive(false);
     };
-  }, [value]);
+
+    if (value) {
+      cleanupStream();
+      return;
+    }
+
+    const startCamera = async () => {
+      setCameraError(null);
+      try {
+        cleanupStream();
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 640 },
+          },
+          audio: false,
+        });
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          try {
+            await videoRef.current.play();
+          } catch (playErr: unknown) {
+            if (playErr instanceof Error && playErr.name === "AbortError") {
+              return;
+            }
+            throw playErr;
+          }
+        }
+        if (!cancelled) {
+          setCameraActive(true);
+        }
+      } catch (err: unknown) {
+        if (cancelled) return;
+        if (err instanceof Error && err.name === "AbortError") return;
+        console.error("Camera access error:", err);
+        const msg =
+          err instanceof Error && err.name === "NotAllowedError"
+            ? "Camera permission denied. Please allow camera access in your browser settings to verify your face."
+            : "Could not access camera. Please check camera connection and permissions.";
+        setCameraError(msg);
+        setCameraActive(false);
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      cancelled = true;
+      cleanupStream();
+    };
+  }, [value, retryKey]);
 
   const captureFace = () => {
     if (!videoRef.current) return;
@@ -437,7 +464,6 @@ function FaceScanner({
           ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
           const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
           onChange(dataUrl);
-          stopCamera();
         }
       } catch (e) {
         console.error("Capture failed:", e);
@@ -562,7 +588,7 @@ function FaceScanner({
             <button
               type="button"
               className="text-xs text-emerald-400 hover:underline flex items-center gap-1 py-1"
-              onClick={startCamera}
+              onClick={() => setRetryKey((k) => k + 1)}
             >
               <Camera className="w-3.5 h-3.5 inline" /> Retry Camera Access
             </button>
