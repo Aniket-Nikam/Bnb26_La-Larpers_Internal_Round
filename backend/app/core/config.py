@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     lab_max_trials: int = 20
     lab_max_retries_per_actor: int = 20
     twilio_account_sid: str = ""
+    twilio_api_key_sid: str = ""
+    twilio_api_key_secret: SecretStr = SecretStr("")
     twilio_auth_token: SecretStr = SecretStr("")
     twilio_phone_number: str = ""
 

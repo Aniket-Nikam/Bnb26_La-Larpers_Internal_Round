@@ -28,13 +28,23 @@ def dispatch_sms_via_twilio(to_number: str, message: str) -> bool:
     cfg = get_settings()
     if not cfg.twilio_account_sid or not cfg.twilio_phone_number:
         return False
+
+    api_key_sid = cfg.twilio_api_key_sid
+    api_key_secret = cfg.twilio_api_key_secret.get_secret_value()
     auth_token = cfg.twilio_auth_token.get_secret_value()
-    if not auth_token:
+
+    if api_key_sid and api_key_secret:
+        user = api_key_sid
+        password = api_key_secret
+    elif auth_token:
+        user = cfg.twilio_account_sid
+        password = auth_token
+    else:
         return False
 
     try:
         url = f"https://api.twilio.com/2010-04-01/Accounts/{cfg.twilio_account_sid}/Messages.json"
-        auth = base64.b64encode(f"{cfg.twilio_account_sid}:{auth_token}".encode()).decode()
+        auth = base64.b64encode(f"{user}:{password}".encode()).decode()
         data = urllib.parse.urlencode({
             "From": cfg.twilio_phone_number,
             "To": to_number,
