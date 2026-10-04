@@ -93,41 +93,42 @@ function AppShell() {
   const organizerAccount = ["organizer", "admin"].includes(
     session.data?.principal.role ?? "",
   );
-  const active = (path: string) =>
-    location.pathname === path
-      ? "text-[rgb(var(--ink))]"
-      : "text-[rgb(var(--muted))] hover:text-[rgb(var(--ink))]";
+  const navClass = (path: string) =>
+    "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 transition-colors " +
+    (location.pathname === path
+      ? "bg-white/[0.07] text-[rgb(var(--ink))]"
+      : "text-[rgb(var(--muted))] hover:bg-white/[0.04] hover:text-[rgb(var(--ink))]");
   const publicLinks = (
     <>
-      <Link className={active("/")} to="/">
+      <Link className={navClass("/")} to="/">
         Overview
       </Link>
-      <Link className={active("/drops")} to="/drops">
+      <Link className={navClass("/drops")} to="/drops">
         Discovery
       </Link>
-      <Link className={active("/fairness")} to="/fairness">
+      <Link className={navClass("/fairness")} to="/fairness">
         Fairness
       </Link>
-      <Link className={active("/organizer")} to="/organizer">
+      <Link className={navClass("/organizer")} to="/organizer">
         Organizer
       </Link>
     </>
   );
   const organizerLinks = (
     <>
-      <Link className={active("/organizer")} to="/organizer">
+      <Link className={navClass("/organizer")} to="/organizer">
         Dashboard
       </Link>
-      <Link className={active("/organizer/new")} to="/organizer/new">
-        <Plus className="h-4 w-4" />
+      <Link className={navClass("/organizer/new")} to="/organizer/new">
+        <Plus className="hidden h-4 w-4 lg:block" />
         New drop
       </Link>
-      <Link className={active("/organizer/lab")} to="/organizer/lab">
-        <FlaskConical className="h-4 w-4" />
+      <Link className={navClass("/organizer/lab")} to="/organizer/lab">
+        <FlaskConical className="hidden h-4 w-4 lg:block" />
         Attack lab
       </Link>
-      <Link className={active("/")} to="/">
-        <Globe2 className="h-4 w-4" />
+      <Link className={navClass("/")} to="/">
+        <Globe2 className="hidden h-4 w-4 lg:block" />
         Public site
       </Link>
     </>
@@ -136,7 +137,7 @@ function AppShell() {
   return (
     <div className="app-shell flex flex-col">
       <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[rgb(var(--canvas)/0.9)] backdrop-blur-xl">
-        <div className="page-wrap flex h-[72px] items-center justify-between gap-5">
+        <div className="page-wrap grid h-[72px] grid-cols-[auto_1fr_auto] items-center gap-3 lg:gap-5">
           <Link
             to={organizerAccount ? "/organizer" : "/"}
             className="flex shrink-0 items-center gap-3 text-base font-extrabold tracking-[-0.04em]"
@@ -147,15 +148,20 @@ function AppShell() {
             </span>
             <span>FairDrop</span>
             {organizerAccount && (
-              <span className="hidden text-xs font-semibold tracking-normal muted sm:inline">
+              <span className="hidden text-xs font-semibold tracking-normal muted xl:inline">
                 Organizer
               </span>
             )}
           </Link>
-          <nav className="hidden items-center gap-6 text-sm font-semibold lg:flex">
+          <nav
+            className="hidden min-w-0 items-center justify-center gap-1 text-sm font-semibold md:flex"
+            aria-label={
+              organizerAccount ? "Organizer workspace" : "Primary navigation"
+            }
+          >
             {organizerAccount ? organizerLinks : publicLinks}
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
             <SystemState />
             {session.data?.principal.role === "participant" && (
               <Link
@@ -168,10 +174,14 @@ function AppShell() {
             {session.data ? (
               <>
                 <Link
-                  className="button-secondary hidden sm:inline-flex"
+                  className="button-secondary hidden max-w-[132px] px-4 sm:inline-flex xl:max-w-[220px]"
                   to="/profile"
+                  title={session.data.principal.display_name}
                 >
-                  {session.data.principal.display_name}
+                  <span className="xl:hidden">Account</span>
+                  <span className="hidden truncate xl:inline">
+                    {session.data.principal.display_name}
+                  </span>
                 </Link>
                 <button
                   className="button-ghost px-3"
@@ -190,14 +200,17 @@ function AppShell() {
             )}
           </div>
         </div>
-        <nav className="no-scrollbar page-wrap flex gap-5 overflow-x-auto pb-3 text-sm font-semibold lg:hidden">
+        <nav
+          className="no-scrollbar page-wrap flex gap-1 overflow-x-auto border-t border-white/[0.05] py-2 text-sm font-semibold md:hidden"
+          aria-label="Mobile navigation"
+        >
           {organizerAccount ? organizerLinks : publicLinks}
           {session.data?.principal.role === "participant" && (
             <>
-              <Link className={active("/entries")} to="/entries">
+              <Link className={navClass("/entries")} to="/entries">
                 Receipts
               </Link>
-              <Link className={active("/profile")} to="/profile">
+              <Link className={navClass("/profile")} to="/profile">
                 Profile
               </Link>
             </>
