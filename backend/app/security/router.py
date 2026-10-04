@@ -14,6 +14,7 @@ from app.core.errors import DomainError
 from app.core.idempotency import claim, complete
 from app.persistence.database import get_db
 from app.persistence.models import User
+from app.security.altcha import create_altcha_challenge, verify_altcha_payload
 from app.security.authorization import get_principal
 from app.security.csrf import generate_csrf_token, require_csrf, require_origin
 from app.security.face import check_duplicate_face, extract_face_embedding
@@ -31,6 +32,13 @@ from app.security.sessions import (
 
 router = APIRouter(tags=["security"])
 DB = Annotated[object, Depends(get_db)]
+
+
+@router.get("/security/altcha/challenge", include_in_schema=False)
+@router.get("/auth/altcha-challenge", include_in_schema=False)
+def get_altcha_challenge():
+    """Generate a signed cryptographic ALTCHA proof-of-work challenge."""
+    return create_altcha_challenge()
 
 
 def projection(db, session):
@@ -59,6 +67,8 @@ def login(body: s.SessionInput, request: Request, response: Response, db: DB):
 @router.post("/auth/password-session", response_model=s.SessionResponse)
 def password_login(body: s.PasswordSessionInput, request: Request, response: Response, db: DB):
     require_origin(request)
+    if body.altcha_payload:
+        verify_altcha_payload(body.altcha_payload, request)
     enforce_limit(request, None, "credential_attempt", _credential_digest(body.email))
     verified = verify_account(db, body.email, body.password)
     if verified is None:
@@ -74,6 +84,11 @@ def password_login(body: s.PasswordSessionInput, request: Request, response: Res
 def register(body: s.RegistrationInput, request: Request, response: Response, db: DB):
     require_origin(request)
     cfg = get_settings()
+
+    if body.altcha_payload:
+        verify_altcha_payload(body.altcha_payload, request)
+    elif cfg.app_profile == "normal":
+        verify_altcha_payload(None, request)
 
     normalized_email = body.email.strip().lower()
     normalized_phone = normalize_phone_number(body.phone_number)

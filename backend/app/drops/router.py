@@ -131,6 +131,10 @@ def enter(
     principal: PARTICIPANT,
     key: KEY,
 ):
+    if body.altcha_payload:
+        from app.security.altcha import verify_altcha_payload
+        verify_altcha_payload(body.altcha_payload, request)
+
     inserted = False
 
     def execute():

@@ -24,7 +24,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { TicketCard, TicketDivider } from "../components/Ticket";
-import { CloudflareTurnstile } from "../components/CloudflareTurnstile";
+import { AltchaChallenge } from "../components/AltchaChallenge";
 import {
   EmptyState,
   LoadingBlock,
@@ -552,7 +552,8 @@ export function DropDetail() {
   const { id } = useParams();
   const session = useSession();
   const action = useAction<Entry>();
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const [altchaVerified, setAltchaVerified] = useState(false);
+  const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
   const drop = useQuery({
     queryKey: ["drop", id],
     queryFn: () => api<Drop>("/drops/" + id),
@@ -709,25 +710,31 @@ export function DropDetail() {
                   window. Refreshes and retries return the same entry.
                 </p>
               </div>
-              <CloudflareTurnstile
-                verified={turnstileVerified}
-                onVerify={() => setTurnstileVerified(true)}
+              <AltchaChallenge
+                verified={altchaVerified}
+                onVerify={(payload) => {
+                  setAltchaVerified(true);
+                  setAltchaPayload(payload);
+                }}
                 label="Verify you are human to enter drop"
                 className="w-full max-w-sm"
               />
               <button
                 className="button"
                 disabled={
-                  !turnstileVerified || action.isPending || d.phase !== "OPEN"
+                  !altchaVerified || action.isPending || d.phase !== "OPEN"
                 }
                 onClick={() =>
-                  action.mutate({ path: "/drops/" + id + "/entries" })
+                  action.mutate({
+                    path: "/drops/" + id + "/entries",
+                    body: altchaPayload ? { altcha_payload: altchaPayload } : {},
+                  })
                 }
               >
                 {action.isPending
                   ? "Saving entry..."
-                  : !turnstileVerified
-                    ? "Complete Cloudflare challenge to enter"
+                  : !altchaVerified
+                    ? "Complete security verification to enter"
                     : d.phase === "OPEN"
                       ? "Enter this drop"
                       : "Entry window is not open"}
@@ -784,7 +791,8 @@ function AuthAside() {
 export function SignInPage() {
   const [invitationMode, setInvitationMode] = useState(false);
   const [code, setCode] = useState("");
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const [altchaVerified, setAltchaVerified] = useState(false);
+  const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
   const login = useLogin();
   const passwordLogin = usePasswordLogin();
   const navigate = useNavigate();
@@ -846,6 +854,7 @@ export function SignInPage() {
                 {
                   email: String(fields.get("email")),
                   password: String(fields.get("password")),
+                  altcha_payload: altchaPayload ?? undefined,
                 },
                 options,
               );
@@ -892,20 +901,23 @@ export function SignInPage() {
             </>
           )}
 
-          <CloudflareTurnstile
-            verified={turnstileVerified}
-            onVerify={() => setTurnstileVerified(true)}
+          <AltchaChallenge
+            verified={altchaVerified}
+            onVerify={(payload) => {
+              setAltchaVerified(true);
+              setAltchaPayload(payload);
+            }}
             label="Verify you are human to sign in"
           />
 
           <button
             className="button w-full"
-            disabled={login.isPending || passwordLogin.isPending || !turnstileVerified}
+            disabled={login.isPending || passwordLogin.isPending || !altchaVerified}
           >
             {login.isPending || passwordLogin.isPending
               ? "Signing in..."
-              : !turnstileVerified
-              ? "Complete Cloudflare challenge to sign in"
+              : !altchaVerified
+              ? "Complete security verification to sign in"
               : "Sign in"}
           </button>
           <ErrorMessage error={login.error ?? passwordLogin.error} />
@@ -1108,7 +1120,8 @@ export function RegisterPage() {
   );
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceError, setFaceError] = useState<string | null>(null);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const [altchaVerified, setAltchaVerified] = useState(false);
+  const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
   const register = useRegister();
   const navigate = useNavigate();
   return (
@@ -1160,6 +1173,7 @@ export function RegisterPage() {
                 password: String(fields.get("password")),
                 role: selectedRole,
                 face_image: faceImage,
+                altcha_payload: altchaPayload ?? undefined,
               },
               {
                 onSuccess: () => {
@@ -1264,23 +1278,26 @@ export function RegisterPage() {
           <div>
             <span className="field-label">Bot detection &amp; security</span>
             <p className="mb-3 mt-1.5 text-sm leading-relaxed muted">
-              Cloudflare Turnstile verification confirms you are human and stops automated registration attacks.
+              ALTCHA cryptographic Proof-of-Work confirms you are human and stops automated registration attacks with zero tracking.
             </p>
-            <CloudflareTurnstile
-              verified={turnstileVerified}
-              onVerify={() => setTurnstileVerified(true)}
+            <AltchaChallenge
+              verified={altchaVerified}
+              onVerify={(payload) => {
+                setAltchaVerified(true);
+                setAltchaPayload(payload);
+              }}
               label="Verify you are human to create account"
             />
           </div>
 
           <button
             className="button w-full"
-            disabled={register.isPending || !turnstileVerified || !faceImage}
+            disabled={register.isPending || !altchaVerified || !faceImage}
           >
             {register.isPending
               ? "Verifying identity & creating account..."
-              : !turnstileVerified
-              ? "Complete Cloudflare challenge to create account"
+              : !altchaVerified
+              ? "Complete security verification to create account"
               : "Create account"}
           </button>
           <ErrorMessage error={register.error} />

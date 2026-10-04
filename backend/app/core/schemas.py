@@ -71,7 +71,7 @@ class ErrorResponse(DTO):
 
 
 class EmptyInput(DTO):
-    pass
+    altcha_payload: str | None = None
 
 
 class Principal(DTO):
@@ -97,6 +97,7 @@ def _normalize_email(value: str) -> str:
 class PasswordSessionInput(DTO):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=128)
+    altcha_payload: str | None = None
 
     _email = field_validator("email")(_normalize_email)
 
@@ -109,6 +110,7 @@ class RegistrationInput(DTO):
     role: Literal["participant", "organizer", "admin"] = "participant"
     admin_key: str | None = None
     face_image: str | None = None
+    altcha_payload: str | None = None
 
     _email = field_validator("email")(_normalize_email)
 
