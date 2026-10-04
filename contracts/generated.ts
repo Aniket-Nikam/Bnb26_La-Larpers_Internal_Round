@@ -398,40 +398,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/drops/{drop_id}/eligibility": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Grant */
-        post: operations["grant_api_v1_admin_drops__drop_id__eligibility_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/drops/{drop_id}/eligibility/{user_public_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke */
-        delete: operations["revoke_api_v1_admin_drops__drop_id__eligibility__user_public_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/drops/{drop_id}/proof": {
         parameters: {
             query?: never;
@@ -807,10 +773,10 @@ export interface components {
             rules_version: string;
             /**
              * Eligibility Policy
-             * @default invitation
-             * @constant
+             * @default authenticated
+             * @enum {string}
              */
-            eligibility_policy: "invitation";
+            eligibility_policy: "invitation" | "authenticated";
             /** Seed Commitment */
             seed_commitment: string | null;
             /**
@@ -938,28 +904,6 @@ export interface components {
         /** ErrorResponse */
         ErrorResponse: {
             error: components["schemas"]["ErrorInfo"];
-        };
-        /** GrantInput */
-        GrantInput: {
-            /** User Public Ids */
-            user_public_ids: string[];
-        };
-        /** GrantSummary */
-        GrantSummary: {
-            /**
-             * Drop Id
-             * Format: uuid
-             */
-            drop_id: string;
-            /** Granted Count */
-            granted_count: number;
-            /** Existing Count */
-            existing_count: number;
-            /**
-             * Server Time
-             * Format: date-time
-             */
-            server_time: string;
         };
         /** Integrity */
         Integrity: {
@@ -1145,6 +1089,8 @@ export interface components {
             display_name: string;
             /** Timezone */
             timezone: string;
+            /** Phone Number */
+            phone_number?: string | null;
         };
         /** ProfilePatch */
         ProfilePatch: {
@@ -1235,12 +1181,24 @@ export interface components {
         };
         /** RegistrationInput */
         RegistrationInput: {
+            /** Display Name */
+            display_name: string;
             /** Email */
             email: string;
             /** Password */
             password: string;
-            /** Display Name */
-            display_name: string;
+            /** Phone Number */
+            phone_number: string;
+            /**
+             * Role
+             * @default participant
+             * @enum {string}
+             */
+            role: "participant" | "organizer" | "admin";
+            /** Admin Key */
+            admin_key?: string | null;
+            /** Face Image */
+            face_image?: string | null;
         };
         /** ReportPending */
         ReportPending: {
@@ -4207,223 +4165,6 @@ export interface operations {
                 content: {
                     "text/csv": string;
                 };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    grant_api_v1_admin_drops__drop_id__eligibility_post: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-                "X-CSRF-Token": string;
-                Origin: string;
-            };
-            path: {
-                drop_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GrantInput"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GrantSummary"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    revoke_api_v1_admin_drops__drop_id__eligibility__user_public_id__delete: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-                "X-CSRF-Token": string;
-                Origin: string;
-            };
-            path: {
-                drop_id: string;
-                user_public_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Unauthorized */
             401: {

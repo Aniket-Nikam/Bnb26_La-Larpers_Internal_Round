@@ -44,10 +44,12 @@ class User(Identity, Base):
     password_hash: Mapped[str | None] = mapped_column(String(256))
     timezone: Mapped[str] = mapped_column(String(100), default="UTC")
     role: Mapped[str] = mapped_column(String(16), default="participant")
+    phone_number: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
     face_embedding: Mapped[list[float] | None] = mapped_column(JSONB, nullable=True)
     __table_args__ = (
         CheckConstraint("role IN ('participant','organizer','admin')"),
         Index("uq_users_email_lower", func.lower(email), unique=True),
+        Index("uq_users_phone_number", phone_number, unique=True),
     )
 
 

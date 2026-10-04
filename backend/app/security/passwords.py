@@ -54,7 +54,7 @@ def verify_password(password: str, encoded: str | None) -> bool:
 
 
 def verify_account(db, email: str, password: str):
-    user = db.scalar(select(User).where(func.lower(User.email) == email))
+    user = db.scalar(select(User).where(func.lower(User.email) == email.lower()))
     valid = verify_password(password, user.password_hash if user else None)
     if not user or not valid or not user.is_active:
         return None

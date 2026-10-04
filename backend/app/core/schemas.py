@@ -80,6 +80,7 @@ class Principal(DTO):
     role: Literal["participant", "organizer", "admin"]
     display_name: str
     timezone: str
+    phone_number: str | None = None
 
 
 class SessionInput(DTO):
@@ -100,9 +101,16 @@ class PasswordSessionInput(DTO):
     _email = field_validator("email")(_normalize_email)
 
 
-class RegistrationInput(PasswordSessionInput):
+class RegistrationInput(DTO):
     display_name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+    phone_number: str = Field(min_length=8, max_length=24)
+    role: Literal["participant", "organizer", "admin"] = "participant"
+    admin_key: str | None = None
     face_image: str | None = None
+
+    _email = field_validator("email")(_normalize_email)
 
     @field_validator("display_name")
     @classmethod
@@ -163,7 +171,7 @@ class DropDetail(DropSummary):
     description: str
     confirmation_seconds: int
     rules_version: str
-    eligibility_policy: Literal["authenticated"] = "authenticated"
+    eligibility_policy: Literal["invitation", "authenticated"] = "authenticated"
     seed_commitment: str | None
     server_time: UtcDatetime
     cancellation_reason: str | None

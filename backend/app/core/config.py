@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=None, extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
     app_profile: Literal["normal", "demo", "test"] = "normal"
     database_url: str = "postgresql+psycopg://localhost/fairdrop"
     redis_url: str = "redis://localhost:6379/0"
@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     lab_max_duration_seconds: int = 300
     lab_max_trials: int = 20
     lab_max_retries_per_actor: int = 20
+    twilio_account_sid: str = ""
+    twilio_api_key_sid: str = ""
+    twilio_api_key_secret: SecretStr = SecretStr("")
+    twilio_auth_token: SecretStr = SecretStr("")
+    twilio_phone_number: str = ""
+    fast2sms_api_key: SecretStr = SecretStr("")
 
     @model_validator(mode="after")
     def validate_profile(self):

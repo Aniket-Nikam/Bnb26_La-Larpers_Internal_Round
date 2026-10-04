@@ -13,6 +13,7 @@ def test_visitor_can_register_and_sign_in(client, db):
         json={
             "display_name": "New Visitor",
             "email": "Visitor@Example.COM",
+            "phone_number": "+14155550001",
             "password": "correct horse battery staple",
         },
         headers=ORIGIN,
@@ -23,6 +24,7 @@ def test_visitor_can_register_and_sign_in(client, db):
 
     user = db.scalar(select(User).where(User.email == "visitor@example.com"))
     assert user is not None
+    assert user.phone_number == "+14155550001"
     assert user.password_hash != "correct horse battery staple"
     credential = db.scalar(select(AccessCredential).where(AccessCredential.user_id == user.id))
     assert credential.label == "account-password"
@@ -41,16 +43,42 @@ def test_registration_rejects_duplicate_email(client):
     body = {
         "display_name": "First",
         "email": "same@example.com",
+        "phone_number": "+14155550002",
         "password": "long-enough-password",
     }
     assert client.post("/api/v1/auth/register", json=body, headers=ORIGIN).status_code == 201
     duplicate = client.post(
         "/api/v1/auth/register",
-        json={**body, "display_name": "Second", "email": "SAME@example.com"},
+        json={**body, "display_name": "Second", "email": "SAME@example.com", "phone_number": "+14155550003"},
         headers=ORIGIN,
     )
     assert duplicate.status_code == 409
     assert duplicate.json()["error"]["code"] == "ACCOUNT_EXISTS"
+    assert "account with this email already exists" in duplicate.json()["error"]["message"]
+
+
+def test_registration_rejects_duplicate_phone_number(client):
+    body = {
+        "display_name": "First Phone User",
+        "email": "firstphone@example.com",
+        "phone_number": "+14155559999",
+        "password": "long-enough-password",
+    }
+    assert client.post("/api/v1/auth/register", json=body, headers=ORIGIN).status_code == 201
+
+    duplicate = client.post(
+        "/api/v1/auth/register",
+        json={
+            "display_name": "Second Phone User",
+            "email": "secondphone@example.com",
+            "phone_number": "+14155559999",
+            "password": "long-enough-password",
+        },
+        headers=ORIGIN,
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "PHONE_EXISTS"
+    assert "account with this phone number already exists" in duplicate.json()["error"]["message"]
 
 
 def test_password_login_rejects_bad_credentials(client):
@@ -66,47 +94,136 @@ def test_password_login_rejects_bad_credentials(client):
 def test_registration_validates_public_fields(client):
     response = client.post(
         "/api/v1/auth/register",
-        json={"display_name": "   ", "email": "invalid", "password": "short"},
+        json={"display_name": "   ", "email": "invalid", "password": "short", "phone_number": "123"},
         headers=ORIGIN,
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
-def test_registration_stores_face_embedding(client, db, monkeypatch):
-    embedding = [0.05] * 128
-    monkeypatch.setattr("app.security.router.extract_face_embedding", lambda _image: embedding)
+def test_admin_can_register_and_sign_in(client, db):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={
+            "display_name": "Admin User",
+            "email": "admin@example.com",
+            "phone_number": "+14155550004",
+            "password": "super-secure-admin-pass",
+            "role": "admin",
+        },
+        headers=ORIGIN,
+    )
+    assert registered.status_code == 201, registered.text
+    assert registered.json()["principal"]["role"] == "admin"
+    assert "fd_session" in registered.cookies
+
+    user = db.scalar(select(User).where(User.email == "admin@example.com"))
+    assert user is not None
+    assert user.role == "admin"
+    assert user.phone_number == "+14155550004"
+
+
+def test_registration_with_face_scan_stores_embedding(client, db, monkeypatch):
+    test_vector = [0.05] * 128
+    monkeypatch.setattr(
+        "app.security.router.extract_face_embedding",
+        lambda img: test_vector,
+    )
+
     response = client.post(
         "/api/v1/auth/register",
         json={
-            "display_name": "Verified Visitor",
-            "email": "verified@example.com",
-            "password": "correct horse battery staple",
+            "display_name": "Face User 1",
+            "email": "face1@example.com",
+            "phone_number": "+14155550005",
+            "password": "valid-password-123",
             "face_image": "data:image/jpeg;base64,dGVzdA==",
         },
         headers=ORIGIN,
     )
     assert response.status_code == 201, response.text
-    user = db.scalar(select(User).where(User.email == "verified@example.com"))
-    assert user.face_embedding == embedding
+
+    user = db.scalar(select(User).where(User.email == "face1@example.com"))
+    assert user is not None
+    assert user.face_embedding is not None
+    assert len(user.face_embedding) == 128
+    assert user.face_embedding[0] == 0.05
 
 
 def test_registration_rejects_duplicate_face(client, monkeypatch):
-    first = [0.10] * 128
-    second = [0.12] * 128
-    monkeypatch.setattr("app.security.router.extract_face_embedding", lambda _image: first)
-    payload = {
-        "display_name": "Original Visitor",
-        "email": "original-face@example.com",
-        "password": "correct horse battery staple",
-        "face_image": "data:image/jpeg;base64,Zmlyc3Q=",
-    }
-    assert client.post("/api/v1/auth/register", json=payload, headers=ORIGIN).status_code == 201
-    monkeypatch.setattr("app.security.router.extract_face_embedding", lambda _image: second)
+    # Vector 1 and Vector 2 are very close (Euclidean distance ~ 0.226 < 0.60 threshold)
+    vector1 = [0.10] * 128
+    vector2 = [0.12] * 128
+
+    monkeypatch.setattr(
+        "app.security.router.extract_face_embedding",
+        lambda img: vector1,
+    )
+    first = client.post(
+        "/api/v1/auth/register",
+        json={
+            "display_name": "Original Person",
+            "email": "original@example.com",
+            "phone_number": "+14155551001",
+            "password": "valid-password-123",
+            "face_image": "data:image/jpeg;base64,Zmlyc3Q=",
+        },
+        headers=ORIGIN,
+    )
+    assert first.status_code == 201, first.text
+
+    # Second registration with a different email/phone but matching face biometrics
+    monkeypatch.setattr(
+        "app.security.router.extract_face_embedding",
+        lambda img: vector2,
+    )
     duplicate = client.post(
         "/api/v1/auth/register",
-        json={**payload, "display_name": "Second Visitor", "email": "second-face@example.com"},
+        json={
+            "display_name": "Duplicate Person",
+            "email": "duplicate@example.com",
+            "phone_number": "+14155551002",
+            "password": "valid-password-123",
+            "face_image": "data:image/jpeg;base64,c2Vjb25k",
+        },
         headers=ORIGIN,
     )
     assert duplicate.status_code == 409
     assert duplicate.json()["error"]["code"] == "DUPLICATE_FACE"
+    assert "face is already registered" in duplicate.json()["error"]["message"]
+
+
+def test_registration_allows_distinct_faces(client, monkeypatch):
+    # Vector 1 and Vector 3 are distinct (Euclidean distance ~ 9.05 >> 0.60)
+    vector_distinct = [0.90] * 128
+
+    monkeypatch.setattr(
+        "app.security.router.extract_face_embedding",
+        lambda img: vector_distinct,
+    )
+    distinct = client.post(
+        "/api/v1/auth/register",
+        json={
+            "display_name": "Different Person",
+            "email": "distinct@example.com",
+            "phone_number": "+14155551003",
+            "password": "valid-password-123",
+            "face_image": "data:image/jpeg;base64,ZGlzdGluY3Q=",
+        },
+        headers=ORIGIN,
+    )
+    assert distinct.status_code == 201, distinct.text
+
+
+def test_extract_face_embedding_validations():
+    import pytest
+    from app.core.errors import DomainError
+    from app.security.face import extract_face_embedding
+
+    with pytest.raises(DomainError) as exc_info:
+        extract_face_embedding("")
+    assert exc_info.value.code == "VALIDATION_ERROR"
+
+    with pytest.raises(DomainError) as exc_info:
+        extract_face_embedding("data:image/jpeg;base64,not-valid-base64!!!")
+    assert exc_info.value.code == "VALIDATION_ERROR"

@@ -85,7 +85,7 @@ def ready():
     try:
         with get_engine().connect() as conn:
             version = conn.scalar(text("SELECT version_num FROM alembic_version LIMIT 1"))
-            db_ok = version in {"e4f200000001", "e5f300000001"}
+            db_ok = version in {"e4f200000001", "e5f300000001", "e6f400000001"}
     except Exception:
         pass
     try:

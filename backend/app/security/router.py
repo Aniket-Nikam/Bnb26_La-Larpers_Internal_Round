@@ -18,6 +18,7 @@ from app.security.authorization import get_principal
 from app.security.csrf import generate_csrf_token, require_csrf, require_origin
 from app.security.face import check_duplicate_face, extract_face_embedding
 from app.security.limits import enforce_limit
+from app.security.otp import normalize_phone_number
 from app.security.passwords import hash_password, verify_account
 from app.security.provisioning import _credential_digest, provision_credential, verify_credential
 from app.security.sessions import (
@@ -72,35 +73,56 @@ def password_login(body: s.PasswordSessionInput, request: Request, response: Res
 @router.post("/auth/register", response_model=s.SessionResponse, status_code=201)
 def register(body: s.RegistrationInput, request: Request, response: Response, db: DB):
     require_origin(request)
-    enforce_limit(request, None, "credential_attempt", _credential_digest(body.email))
-    # Serialize only registrations for the same normalized email so concurrent
-    # submissions return the same stable conflict instead of a unique-key race.
-    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(body.email, 0))))
-    if db.scalar(select(User.id).where(func.lower(User.email) == body.email)):
+    cfg = get_settings()
+
+    normalized_email = body.email.strip().lower()
+    normalized_phone = normalize_phone_number(body.phone_number)
+
+    enforce_limit(request, None, "credential_attempt", _credential_digest(normalized_email))
+    enforce_limit(request, None, "credential_attempt", _credential_digest(normalized_phone))
+
+    # Advisory locks for concurrency protection on email and phone
+    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(normalized_email, 0))))
+    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(normalized_phone, 1))))
+
+    # 1. Email uniqueness check
+    if db.scalar(select(User.id).where(func.lower(User.email) == normalized_email)):
         raise DomainError("ACCOUNT_EXISTS", "An account with this email already exists.", 409)
+
+    # 2. Phone uniqueness check
+    if db.scalar(select(User.id).where(User.phone_number == normalized_phone)):
+        raise DomainError("PHONE_EXISTS", "An account with this phone number already exists.", 409)
+
+    if cfg.app_profile == "normal" and body.role in {"organizer", "admin"}:
+        key = cfg.session_digest_key.get_secret_value()
+        if not body.admin_key or body.admin_key != key:
+            raise DomainError(
+                "FORBIDDEN", "Admin registration requires a valid admin key in production.", 403
+            )
+
     face_embedding = None
     if body.face_image:
-        # Serialize biometric uniqueness checks so concurrent registrations with
-        # different emails cannot create two accounts for the same face.
-        db.execute(select(func.pg_advisory_xact_lock(73120493)))
         face_embedding = extract_face_embedding(body.face_image)
-        if check_duplicate_face(db, face_embedding):
+        duplicate = check_duplicate_face(db, face_embedding)
+        if duplicate:
             raise DomainError(
                 "DUPLICATE_FACE",
-                "An account with this face is already registered.",
+                "An account with this face is already registered. Duplicate accounts are not permitted.",
                 409,
             )
-    elif get_settings().app_profile != "test":
+    elif cfg.app_profile != "test":
         raise DomainError(
             "VALIDATION_ERROR",
             "A camera face scan is required to register an account.",
             422,
         )
+
     user = User(
         display_name=body.display_name,
-        email=body.email,
-        password_hash=hash_password(body.password),
-        role="participant",
+        phone_number=normalized_phone,
+        email=normalized_email,
+        password_hash=hash_password(body.password) if body.password else None,
+        role=body.role,
         face_embedding=face_embedding,
     )
     db.add(user)

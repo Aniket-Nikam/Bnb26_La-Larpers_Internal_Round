@@ -45,7 +45,7 @@ def test_contract_routes_error_envelope_and_health():
         too_big = client.post("/api/v1/auth/session", content=b"a" * 65537)
         assert too_big.status_code == 413
     schema = app.openapi()
-    assert len(schema["paths"]) == 33
+    assert len(schema["paths"]) == 31
     for route in ("/api/v1/profile", "/api/v1/admin/drops", "/api/v1/drops/{drop_id}/entries"):
         method = "patch" if route.endswith("profile") else "post"
         params = {p["name"] for p in schema["paths"][route][method]["parameters"]}

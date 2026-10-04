@@ -1083,6 +1083,9 @@ function FaceScanner({
 }
 
 export function RegisterPage() {
+  const [role, setRole] = useState<"participant" | "organizer" | "admin">(
+    "participant",
+  );
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [faceError, setFaceError] = useState<string | null>(null);
   const register = useRegister();
@@ -1093,12 +1096,23 @@ export function RegisterPage() {
       <TicketCard className="p-7 sm:p-10">
         <UserPlus className="h-8 w-8 accent" />
         <h1 className="mt-8 text-4xl font-semibold tracking-[-0.045em]">
-          Create your participant account.
+          Create your account.
         </h1>
         <p className="mt-3 muted">
           Registration creates the identity used to enforce one account, one
           durable entry per drop.
         </p>
+
+        <div className="mt-6 rounded-[var(--radius-control)] border border-white/10 bg-white/[0.03] p-4 text-xs leading-relaxed muted space-y-1">
+          <div className="flex items-center gap-2 font-semibold text-[rgb(var(--accent))]">
+            <ShieldCheck className="h-4 w-4" />
+            <span>Anti-Sybil Uniqueness Guarantee</span>
+          </div>
+          <p>
+            To prevent fraud and duplicate accounts, each account requires a unique <strong>Email</strong>, <strong>Phone Number</strong>, and <strong>Facial Identity Scan</strong>.
+          </p>
+        </div>
+
         <form
           className="mt-8 space-y-5"
           onSubmit={(event) => {
@@ -1109,17 +1123,50 @@ export function RegisterPage() {
               return;
             }
             const fields = new FormData(event.currentTarget);
+            const phoneNumber = String(fields.get("phone_number") || "").trim();
+            if (!phoneNumber) {
+              setFaceError("A phone number is required.");
+              return;
+            }
+            const selectedRole =
+              (fields.get("role") as "participant" | "organizer" | "admin") ||
+              role;
             register.mutate(
               {
                 display_name: String(fields.get("display_name")),
-                email: String(fields.get("email")),
+                email: String(fields.get("email")).trim().toLowerCase(),
+                phone_number: phoneNumber,
                 password: String(fields.get("password")),
+                role: selectedRole,
                 face_image: faceImage,
               },
-              { onSuccess: () => navigate("/profile") },
+              {
+                onSuccess: () => {
+                  if (selectedRole === "admin" || selectedRole === "organizer") {
+                    navigate("/organizer");
+                  } else {
+                    navigate("/profile");
+                  }
+                },
+              },
             );
           }}
         >
+          <label className="block">
+            <span className="field-label">Account type</span>
+            <select
+              className="field"
+              name="role"
+              value={role}
+              onChange={(e) =>
+                setRole(e.target.value as "participant" | "organizer" | "admin")
+              }
+            >
+              <option value="participant">Participant (Enter drops, verify proofs)</option>
+              <option value="organizer">Organizer (Create drops, manage draws)</option>
+              <option value="admin">Admin (Administrative &amp; Attack Lab access)</option>
+            </select>
+          </label>
           <label className="block">
             <span className="field-label">Display name</span>
             <input
@@ -1128,6 +1175,7 @@ export function RegisterPage() {
               autoComplete="name"
               required
               maxLength={100}
+              placeholder="Alex Johnson"
             />
           </label>
           <label className="block">
@@ -1139,7 +1187,22 @@ export function RegisterPage() {
               autoComplete="email"
               required
               maxLength={254}
+              placeholder="alex@example.com"
             />
+          </label>
+          <label className="block">
+            <span className="field-label">Phone number</span>
+            <input
+              className="field"
+              name="phone_number"
+              type="tel"
+              autoComplete="tel"
+              placeholder="+14155552671"
+              required
+            />
+            <span className="mt-2 block text-xs muted">
+              Include country code (e.g. +14155552671 or +919876543210). Every account requires a unique phone number.
+            </span>
           </label>
           <label className="block">
             <span className="field-label">Password</span>
@@ -1151,16 +1214,16 @@ export function RegisterPage() {
               required
               minLength={8}
               maxLength={128}
+              placeholder="At least 8 characters"
             />
             <span className="mt-2 block text-xs muted">
               Use at least 8 characters.
             </span>
           </label>
           <div>
-            <span className="field-label">Face verification</span>
+            <span className="field-label">Facial Identity Scan</span>
             <p className="mb-4 mt-2 text-sm leading-relaxed muted">
-              This prevents one person from creating several accounts. The
-              server stores a numeric face embedding, not your photo.
+              This guarantees 1 Person = 1 Account. The server checks 1:N uniqueness and stores an irreversible numeric embedding, never raw imagery.
             </p>
             <FaceScanner
               value={faceImage}
@@ -1177,7 +1240,7 @@ export function RegisterPage() {
             )}
           </div>
           <button className="button w-full" disabled={register.isPending}>
-            {register.isPending ? "Verifying identity..." : "Create account"}
+            {register.isPending ? "Verifying identity & creating account..." : "Create account"}
           </button>
           <ErrorMessage error={register.error} />
         </form>
